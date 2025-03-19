@@ -37,8 +37,8 @@ public class InputManager : MonoBehaviour
                     BallControl.instance.MouseNormalMethod();   //call ball method
                 }
                 else
-                {                                               //else call camera method
-                    CameraRotation.instance.RotateCamera(Input.GetAxis("Mouse X"));
+                {                                               // else call camera method with both horizontal and vertical input
+                    CameraRotation.instance.RotateCamera(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
                 }
             }
 

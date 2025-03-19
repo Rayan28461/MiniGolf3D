@@ -7,9 +7,15 @@ using UnityEngine;
 /// </summary>
 public class CameraRotation : MonoBehaviour
 {
-    [SerializeField] private float rotationSpeed = 0.2f;    //rotation speed
-
     public static CameraRotation instance;
+
+    public float horizontalSpeed = 2f; // used for yaw rotation
+    public float stablePitch = 0f;     // fixed pitch angle for x-axis
+    public float verticalSpeed = 2f;
+    public float minPitch = -45f;
+    public float maxPitch = 45f;
+
+    private float currentYaw = 0f;
 
     private void Awake()
     {
@@ -24,11 +30,14 @@ public class CameraRotation : MonoBehaviour
     }
 
     /// <summary>
-    /// Metod called to rotate camera
+    /// Rotates camera only around y-axis while keeping x-axis stable.
     /// </summary>
-    /// <param name="XaxisRotation">Mouse X value</param>
-    public void RotateCamera(float XaxisRotation)           
+    /// <param name="mouseX">Horizontal mouse input</param>
+    /// <param name="mouseY">Ignored</param>
+    public void RotateCamera(float mouseX, float mouseY)
     {
-        transform.Rotate(Vector3.down, -XaxisRotation * rotationSpeed); //rotate the camera
+        currentYaw += mouseX * horizontalSpeed;
+        // x-axis remains locked at stablePitch
+        transform.localRotation = Quaternion.Euler(stablePitch, currentYaw, 0);
     }
 }

@@ -40,7 +40,7 @@ public class BallControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (rgBody.velocity == Vector3.zero && !ballIsStatic)   //if velocity is zero and ballIsStatic is false
+        if (rgBody.linearVelocity == Vector3.zero && !ballIsStatic)   //if velocity is zero and ballIsStatic is false
         {
             ballIsStatic = true;                                //set ballIsStatic to true
             LevelManager.instance.ShotTaken();                  //inform LevelManager of shot taken
