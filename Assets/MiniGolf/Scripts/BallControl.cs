@@ -56,6 +56,10 @@ public class BallControl : MonoBehaviour
             canShoot = false;                                       //set canShoot to false
             ballIsStatic = false;                                   //set ballIsStatic to false
             direction = startPos - endPos;                          //get the direction between 2 vectors from start to end pos
+            // Zero out the vertical component to prevent bouncing on flat ground.
+            direction.y = 0;
+            if (force > 5)
+                force = 5;
             rgBody.AddForce(direction * force, ForceMode.Impulse);  //add force to the ball in given direction
             areaAffector.SetActive(false);                          //deactivate areaAffector
             UIManager.instance.PowerBar.fillAmount = 0;             //reset the powerBar to zero

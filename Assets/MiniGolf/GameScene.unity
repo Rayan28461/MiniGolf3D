@@ -155,7 +155,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.785, y: 0.9225001}
   m_AnchorMax: {x: 0.97941685, y: 0.98625004}
-  m_AnchoredPosition: {x: 0.30000305, y: -1}
+  m_AnchoredPosition: {x: 0.2999878, y: -1}
   m_SizeDelta: {x: -0.19999695, y: -1.0999985}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &191287379
@@ -817,7 +817,7 @@ Light:
   m_CookieSize: 10
   m_Shadows:
     m_Type: 2
-    m_Resolution: -1
+    m_Resolution: 3
     m_CustomResolution: -1
     m_Strength: 0.296
     m_Bias: 0.05
@@ -913,7 +913,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.18733335, y: 0.83124995}
   m_AnchorMax: {x: 0.804, y: 0.92875004}
-  m_AnchoredPosition: {x: 0.6999817, y: -1}
+  m_AnchoredPosition: {x: 0.6999512, y: -1}
   m_SizeDelta: {x: -0.6000061, y: -0.5999985}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &713283150
@@ -1200,7 +1200,7 @@ Canvas:
   m_RenderMode: 0
   m_Camera: {fileID: 0}
   m_PlaneDistance: 100
-  m_PixelPerfect: 0
+  m_PixelPerfect: 1
   m_ReceivesEvents: 1
   m_OverrideSorting: 0
   m_OverridePixelPerfect: 0
@@ -1725,7 +1725,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cec83048334d4f841b044cb5ee09bfc9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rotationSpeed: 1.5
+  horizontalSpeed: 2
+  stablePitch: 0
+  verticalSpeed: 2
+  minPitch: -45
+  maxPitch: 45
 --- !u!114 &1758358148
 MonoBehaviour:
   m_ObjectHideFlags: 0
