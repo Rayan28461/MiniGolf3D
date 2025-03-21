@@ -57,66 +57,24 @@ public class BallControl : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (canShoot)
+        if (canShoot)                                               //if canSHoot is true
         {
-            canShoot = false;
-            ballIsStatic = false;
-            direction = startPos - endPos;
-            rgBody.AddForce(direction * force, ForceMode.Impulse);
-            areaAffector.SetActive(false);
-            UIManager.instance.PowerBar.fillAmount = 0;
-            force = 0;
-            startPos = endPos = Vector3.zero;
-        }
-
-        // 🔴 **Added Raycasting Here**
-        PerformRaycast();
-        if (meshDetector != null)
-        {
-            Debug.Log("hello");
-            meshDetector.DetectMeshIntersection();
+            canShoot = false;                                       //set canShoot to false
+            ballIsStatic = false;                                   //set ballIsStatic to false
+            direction = startPos - endPos;                          //get the direction between 2 vectors from start to end pos
+            // Zero out the vertical component to prevent bouncing on flat ground.
+            direction.y = 0;
+            if (force > 5)
+                force = 5;
+            rgBody.AddForce(direction * force, ForceMode.Impulse);  //add force to the ball in given direction
+            areaAffector.SetActive(false);                          //deactivate areaAffector
+            UIManager.instance.PowerBar.fillAmount = 0;             //reset the powerBar to zero
+            force = 0;                                              //reset the force to zero
+            startPos = endPos = Vector3.zero;                       //reset the vectors to zero
         }
     }
 
-    /// <summary>
-    /// Detects objects in front of the ball using Raycast
-    /// </summary>
-    private void PerformRaycast()
-    {
-        List<string> seenObjects = new List<string>();
-
-        // Get the forward direction of the ball
-        Vector3 forward = transform.forward;
-
-        for (int i = 0; i < rayCount; i++)
-        {
-            // Calculate spread of rays within visionAngle
-            float angle = -visionAngle / 2 + (visionAngle / (rayCount - 1)) * i;
-            Quaternion rotation = Quaternion.Euler(0, angle, 0);
-            Vector3 rayDirection = rotation * forward;
-
-            // Perform the raycast
-            if (Physics.Raycast(transform.position, rayDirection, out RaycastHit hit, visionDistance, detectionLayer))
-            {
-                if (!seenObjects.Contains(hit.collider.name))
-                {
-                    seenObjects.Add(hit.collider.name);
-                    Debug.Log("Ball sees: " + hit.collider.name);
-                }
-            }
-
-            // Debug: Draw rays in Scene view
-            Debug.DrawRay(transform.position, rayDirection * visionDistance, Color.green, 0.1f);
-        }
-    }
-    
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, 4f);
-    }
-
-
+    // Unity native Method to detect colliding objects
     private void OnTriggerEnter(Collider other)
     {
         if (other.name == "Destroyer")
