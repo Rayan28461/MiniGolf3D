@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// Script which controls the ball
@@ -6,23 +7,29 @@
 [RequireComponent(typeof(Rigidbody))]
 public class BallControl : MonoBehaviour
 {
-    public static BallControl instance;                 
+    public static BallControl instance;
 
-    [SerializeField] private LineRenderer lineRenderer;     //reference to lineRenderer child object
-    [SerializeField] private float MaxForce;                //maximum force that an be applied to ball
-    [SerializeField] private float forceModifier = 0.5f;    //multipliers of force
-    [SerializeField] private GameObject areaAffector;       //reference to sprite object which show area around ball to click
-    [SerializeField] private LayerMask rayLayer;            //layer allowed to be detected by ray
-
-    private float force;                                    //actuale force which is applied to the ball
-    private Rigidbody rgBody;                               //reference to rigidbody attached to this gameobject
-    /// <summary>
-    /// The below variables are used to decide the force to be applied to the ball
-    /// </summary>
+    [SerializeField] private LineRenderer lineRenderer;
+    [SerializeField] private float MaxForce;
+    [SerializeField] private float forceModifier = 0.5f;
+    [SerializeField] private GameObject areaAffector;
+    [SerializeField] private LayerMask rayLayer;
+    
+    private float force;
+    private Rigidbody rgBody;
     private Vector3 startPos, endPos;
-    private bool canShoot = false, ballIsStatic = true;    //bool to make shooting stopping ball easy
-    private Vector3 direction;                              //direction in which the ball will be shot
+    private bool canShoot = false, ballIsStatic = true;
+    private Vector3 direction;
 
+    // [SerializeField] private float rayDistance = 1.0f; // Distance for raycasting
+
+    public float visionDistance = 10f; // How far the ball can see
+    public float visionAngle = 90f;    // Field of view (FOV) in degrees
+    public int rayCount = 20;          // Number of rays in the vision cone
+    public LayerMask detectionLayer;   // Layers the ball can "see"
+    
+    public MeshCollisionDetector meshDetector;
+    
     private void Awake()
     {
         if (instance == null)
@@ -34,97 +41,135 @@ public class BallControl : MonoBehaviour
             Destroy(gameObject);
         }
 
-        rgBody = GetComponent<Rigidbody>();                 //get reference to the rigidbody
+        rgBody = GetComponent<Rigidbody>();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if (rgBody.linearVelocity == Vector3.zero && !ballIsStatic)   //if velocity is zero and ballIsStatic is false
+        if (rgBody.linearVelocity == Vector3.zero && !ballIsStatic)
         {
-            ballIsStatic = true;                                //set ballIsStatic to true
-            LevelManager.instance.ShotTaken();                  //inform LevelManager of shot taken
-            rgBody.angularVelocity = Vector3.zero;              //set angular velocity to zero
-            areaAffector.SetActive(true);                       //activate areaAffector
+            ballIsStatic = true;
+            LevelManager.instance.ShotTaken();
+            rgBody.angularVelocity = Vector3.zero;
+            areaAffector.SetActive(true);
         }
     }
 
     private void FixedUpdate()
     {
-        if (canShoot)                                               //if canSHoot is true
+        if (canShoot)
         {
-            canShoot = false;                                       //set canShoot to false
-            ballIsStatic = false;                                   //set ballIsStatic to false
-            direction = startPos - endPos;                          //get the direction between 2 vectors from start to end pos
-            rgBody.AddForce(direction * force, ForceMode.Impulse);  //add force to the ball in given direction
-            areaAffector.SetActive(false);                          //deactivate areaAffector
-            UIManager.instance.PowerBar.fillAmount = 0;             //reset the powerBar to zero
-            force = 0;                                              //reset the force to zero
-            startPos = endPos = Vector3.zero;                       //reset the vectors to zero
+            canShoot = false;
+            ballIsStatic = false;
+            direction = startPos - endPos;
+            rgBody.AddForce(direction * force, ForceMode.Impulse);
+            areaAffector.SetActive(false);
+            UIManager.instance.PowerBar.fillAmount = 0;
+            force = 0;
+            startPos = endPos = Vector3.zero;
         }
-    }
 
-    // Unity native Method to detect colliding objects
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.name == "Destroyer")                              //if the object name is Destroyer
+        // 🔴 **Added Raycasting Here**
+        PerformRaycast();
+        if (meshDetector != null)
         {
-            LevelManager.instance.LevelFailed();                    //Level Failed
+            Debug.Log("hello");
+            meshDetector.DetectMeshIntersection();
         }
-        else if (other.name == "Hole")                              //if the object name is Hole
-        {
-            LevelManager.instance.LevelComplete();                  //Level Complete
-        }
-    }
-
-    public void MouseDownMethod()                                           //method called on mouse down by InputManager
-    {
-        if(!ballIsStatic) return;                                           //no mouse detection if ball is moving
-        startPos = ClickedPoint();                                          //get the vector in word space
-        lineRenderer.gameObject.SetActive(true);                            //activate lineRenderer
-        lineRenderer.SetPosition(0, lineRenderer.transform.localPosition);  //set its 1st position
-    }
-
-    public void MouseNormalMethod()                                         //method called by InputManager
-    {
-        if(!ballIsStatic) return;                                           //no mouse detection if ball is moving
-        endPos = ClickedPoint();                                                //get the vector in word space
-        force = Mathf.Clamp(Vector3.Distance(endPos, startPos) * forceModifier, 0, MaxForce);   //calculate the force
-        UIManager.instance.PowerBar.fillAmount = force / MaxForce;              //set the powerBar image fill amount
-        //we convert the endPos to local pos for ball as lineRenderer is child of ball
-        lineRenderer.SetPosition(1, transform.InverseTransformPoint(endPos));   //set its 1st position
-    }
-
-    public void MouseUpMethod()                                             //method called by InputManager
-    {
-        if(!ballIsStatic) return;                                           //no mouse detection if ball is moving
-        canShoot = true;                                                    //set canShoot true
-        lineRenderer.gameObject.SetActive(false);                           //deactive lineRenderer
     }
 
     /// <summary>
-    /// Method used to convert the mouse position to the world position in respect to Level
+    /// Detects objects in front of the ball using Raycast
     /// </summary>
+    private void PerformRaycast()
+    {
+        List<string> seenObjects = new List<string>();
+
+        // Get the forward direction of the ball
+        Vector3 forward = transform.forward;
+
+        for (int i = 0; i < rayCount; i++)
+        {
+            // Calculate spread of rays within visionAngle
+            float angle = -visionAngle / 2 + (visionAngle / (rayCount - 1)) * i;
+            Quaternion rotation = Quaternion.Euler(0, angle, 0);
+            Vector3 rayDirection = rotation * forward;
+
+            // Perform the raycast
+            if (Physics.Raycast(transform.position, rayDirection, out RaycastHit hit, visionDistance, detectionLayer))
+            {
+                if (!seenObjects.Contains(hit.collider.name))
+                {
+                    seenObjects.Add(hit.collider.name);
+                    Debug.Log("Ball sees: " + hit.collider.name);
+                }
+            }
+
+            // Debug: Draw rays in Scene view
+            Debug.DrawRay(transform.position, rayDirection * visionDistance, Color.green, 0.1f);
+        }
+    }
+    
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, 4f);
+    }
+
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.name == "Destroyer")
+        {
+            LevelManager.instance.LevelFailed();
+        }
+        else if (other.name == "Hole")
+        {
+            LevelManager.instance.LevelComplete();
+        }
+    }
+
+    public void MouseDownMethod()
+    {
+        if (!ballIsStatic) return;
+        startPos = ClickedPoint();
+        lineRenderer.gameObject.SetActive(true);
+        lineRenderer.SetPosition(0, lineRenderer.transform.localPosition);
+    }
+
+    public void MouseNormalMethod()
+    {
+        if (!ballIsStatic) return;
+        endPos = ClickedPoint();
+        force = Mathf.Clamp(Vector3.Distance(endPos, startPos) * forceModifier, 0, MaxForce);
+        UIManager.instance.PowerBar.fillAmount = force / MaxForce;
+        lineRenderer.SetPosition(1, transform.InverseTransformPoint(endPos));
+    }
+
+    public void MouseUpMethod()
+    {
+        if (!ballIsStatic) return;
+        canShoot = true;
+        lineRenderer.gameObject.SetActive(false);
+    }
+
     Vector3 ClickedPoint()
     {
-        Vector3 position = Vector3.zero;                                //get a new Vector3 varialbe
-        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);    //create a ray from camera in mouseposition direction
-        RaycastHit hit = new RaycastHit();                              //create a RaycastHit
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity, rayLayer))    //check for the hit 
+        Vector3 position = Vector3.zero;
+        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit = new RaycastHit();
+        if (Physics.Raycast(ray, out hit, Mathf.Infinity, rayLayer))
         {
-            position = hit.point;                                       //save the hit point in position
+            position = hit.point;
         }
-        return position;                                                //return position
+        return position;
     }
 
 #if UNITY_EDITOR
-
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, 1.5f);
     }
-
 #endif
-
 }
