@@ -6,6 +6,7 @@
 [System.Serializable]
 public class LevelData
 {
-    public int shotCount;           //maximum shot player can take 
-    public GameObject levelPrefab;  //reference to level prefab
+    public int shotCount;           // maximum shot player can take 
+    public GameObject levelPrefab;  // reference to level prefab
+    public Vector3[] agentPositions; // positions to spawn agents
 }

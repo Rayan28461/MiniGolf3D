@@ -1,93 +1,113 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
-/// <summary>
-/// Script responsible for managing level, like spawning level, spawning balls, deciding game win/loss status and more
-/// </summary>
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager instance;
 
-    public GameObject ballPrefab;           //reference to ball prefab
-    public Vector3 ballSpawnPos;            //reference to spawn position of ball
+    public GameObject ballPrefab, agentPrefab;
+    public Vector3 ballSpawnPos;
+    public LevelData[] levelDatas;
 
-    public LevelData[] levelDatas;          //list of all the available levels
-
-    private int shotCount = 0;              //count to store available shots
+    private int shotCount = 0;
 
     private void Awake()
     {
         if (instance == null)
-        {
             instance = this;
-        }
         else
-        {
             Destroy(gameObject);
-        }
     }
 
-    /// <summary>
-    /// Method to spawn level
-    /// </summary>
     public void SpawnLevel(int levelIndex)
     {
-        //we spawn the level prefab at required position
+        
+        // Spawn the level prefab.
         Instantiate(levelDatas[levelIndex].levelPrefab, Vector3.zero, Quaternion.identity);
-        shotCount = levelDatas[levelIndex].shotCount;                                   //set the available shots
-        UIManager.instance.ShotText.text = shotCount.ToString();                        //set the ShotText text
-                                                                   //then we Instantiate the ball at spawn position
+        shotCount = levelDatas[levelIndex].shotCount;
+        UIManager.instance.ShotText.text = shotCount.ToString();
+
+        // Instantiate the ball and set the camera target.
         GameObject ball = Instantiate(ballPrefab, ballSpawnPos, Quaternion.identity);
-        CameraFollow.instance.SetTarget(ball);                      //set the camera target
-        GameManager.singleton.gameStatus = GameStatus.Playing;      //set the game status to playing
+        CameraFollow.instance.SetTarget(ball);
+
+        List<GameObject> agents = new List<GameObject>(); // Store spawned agents
+
+        for (int i = 0; i < 10; i++)
+        {
+            GameObject agent = Instantiate(agentPrefab, ballSpawnPos, Quaternion.identity);
+
+            // Ignore collision with the ball
+            Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
+
+            // Ignore collision with other agents
+            foreach (GameObject otherAgent in agents)
+            {
+                Physics.IgnoreCollision(agent.GetComponent<Collider>(), otherAgent.GetComponent<Collider>());
+            }
+
+            agents.Add(agent); // Store this agent for future ignores
+
+            StartCoroutine(MiniGolfAPI.InitAgent(i, GameManager.singleton.initialShots, (response) =>
+            {
+                Debug.Log("Init API response for agent " + i + ": " + response);
+            }));
+        }
+
+
+        // GameObject agent = Instantiate(agentPrefab, ballSpawnPos, Quaternion.identity);
+        // Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
+
+        GameManager.singleton.gameStatus = GameStatus.Playing;
+
+        // For each agent, send an init call
+        // foreach (int id in GameManager.singleton.agentIds)
+        // {
+        //     StartCoroutine(MiniGolfAPI.InitAgent(id, GameManager.singleton.initialShots, (response) =>
+        //     {
+        //         Debug.Log("Init API response for agent " + id + ": " + response);
+        //     }));
+        // }
     }
 
-    /// <summary>
-    /// Method used to reduce shot
-    /// </summary>
     public void ShotTaken()
     {
-        if (shotCount > 0)                                          //if shotcount is more than 0
+        if (shotCount > 0)
         {
-            shotCount--;                                            //reduce it by 1
-            UIManager.instance.ShotText.text = "" + shotCount;      //set the text
+            shotCount--;
+            UIManager.instance.ShotText.text = shotCount.ToString();
 
-            if (shotCount <= 0)                                     //if shotCount is less than 0
+            if (shotCount <= 0)
             {
-                LevelFailed();                                          //Level failed
+                LevelFailed();
             }
         }
     }
 
-    /// <summary>
-    /// Method called when player failed the level
-    /// </summary>
     public void LevelFailed()
     {
-        if (GameManager.singleton.gameStatus == GameStatus.Playing) //check if the gamestatus is playing
+        if (GameManager.singleton.gameStatus == GameStatus.Playing)
         {
-            GameManager.singleton.gameStatus = GameStatus.Failed;   //set gamestatus to failed
-            UIManager.instance.GameResult();                        //call GameResult method
+            GameManager.singleton.gameStatus = GameStatus.Failed;
+            UIManager.instance.GameResult();
         }
     }
 
-    /// <summary>
-    /// Method called when player win the level
-    /// </summary>
     public void LevelComplete()
     {
-        if (GameManager.singleton.gameStatus == GameStatus.Playing) //check if the gamestatus is playing
-        {    //check if currentLevelIndex is less than total levels available
-            if (GameManager.singleton.currentLevelIndex < levelDatas.Length)    
+        if (GameManager.singleton.gameStatus == GameStatus.Playing)
+        {
+            if (GameManager.singleton.currentLevelIndex < levelDatas.Length)
             {
-                GameManager.singleton.currentLevelIndex++;  //increase the count by 1
+                GameManager.singleton.currentLevelIndex++;
             }
             else
             {
-                //else start from level 0
                 GameManager.singleton.currentLevelIndex = 0;
             }
-            GameManager.singleton.gameStatus = GameStatus.Complete; //set gamestatus to Complete
-            UIManager.instance.GameResult();                        //call GameResult method
+
+            GameManager.singleton.gameStatus = GameStatus.Complete;
+            UIManager.instance.GameResult();
         }
     }
 }

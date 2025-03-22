@@ -21,7 +21,9 @@ public class BallControl : MonoBehaviour
     /// </summary>
     private Vector3 startPos, endPos;
     private bool canShoot = false, ballIsStatic = true;    //bool to make shooting stopping ball easy
-    private Vector3 direction;                              //direction in which the ball will be shot
+    private Vector3 direction;                            //direction in which the ball will be shot
+
+
 
     private void Awake()
     {
@@ -80,6 +82,8 @@ public class BallControl : MonoBehaviour
             LevelManager.instance.LevelComplete();                  //Level Complete
         }
     }
+
+
 
     public void MouseDownMethod()                                           //method called on mouse down by InputManager
     {
