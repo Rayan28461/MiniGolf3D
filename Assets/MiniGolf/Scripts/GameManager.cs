@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     public GameStatus gameStatus = GameStatus.None;
 
     // Changed to support multiple agents
-    public List<int> agentIds = new List<int> { 1, 2, 3, 4, 5, 6 };
+    public List<int> agentIds;
     public int initialShots = 5;
     
     private void Awake()

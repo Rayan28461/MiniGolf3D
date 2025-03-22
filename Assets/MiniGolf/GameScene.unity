@@ -578,18 +578,24 @@ MonoBehaviour:
   - shotCount: 5
     levelPrefab: {fileID: 9151569318176113239, guid: 1a98e835830028944a49be86bcbf4158,
       type: 3}
+    agentPositions: []
   - shotCount: 5
     levelPrefab: {fileID: 711297267708857532, guid: 7f88a8d989da3864a97c0c6520b61750,
       type: 3}
+    agentPositions: []
   - shotCount: 5
     levelPrefab: {fileID: 718906723722505572, guid: bd59e3fe26794124bbb9de6ac5ecaf67,
       type: 3}
+    agentPositions: []
   - shotCount: 5
     levelPrefab: {fileID: 9151569318176113239, guid: f732f251a96c73e468865d235b8cf285,
       type: 3}
+    agentPositions: []
   - shotCount: 5
     levelPrefab: {fileID: 9151569318176113239, guid: a5beecb27aac45347b00aea64f9b0b40,
       type: 3}
+    agentPositions: []
+  numberOfAgents: 200
 --- !u!1 &479225599
 GameObject:
   m_ObjectHideFlags: 0

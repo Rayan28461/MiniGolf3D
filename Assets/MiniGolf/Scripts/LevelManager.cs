@@ -8,6 +8,7 @@ public class LevelManager : MonoBehaviour
     public GameObject ballPrefab, agentPrefab;
     public Vector3 ballSpawnPos;
     public LevelData[] levelDatas;
+    public int numberOfAgents = 1;  // NEW: specify number of agents to create
 
     private int shotCount = 0;
 
@@ -33,41 +34,51 @@ public class LevelManager : MonoBehaviour
 
         List<GameObject> agents = new List<GameObject>(); // Store spawned agents
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < numberOfAgents; i++)
         {
-            GameObject agent = Instantiate(agentPrefab, ballSpawnPos, Quaternion.identity);
+            // Use agent position from levelDatas if available, otherwise fallback to ballSpawnPos.
+            Vector3 spawnPos = (levelDatas[levelIndex].agentPositions != null && 
+                                i < levelDatas[levelIndex].agentPositions.Length) 
+                                 ? levelDatas[levelIndex].agentPositions[i] 
+                                 : ballSpawnPos;
+            GameObject agent = Instantiate(agentPrefab, spawnPos, Quaternion.identity);
 
             // Ignore collision with the ball
             Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
-
             // Ignore collision with other agents
             foreach (GameObject otherAgent in agents)
             {
                 Physics.IgnoreCollision(agent.GetComponent<Collider>(), otherAgent.GetComponent<Collider>());
             }
+            
+            agents.Add(agent); // Store agent
 
-            agents.Add(agent); // Store this agent for future ignores
-
-            StartCoroutine(MiniGolfAPI.InitAgent(i, GameManager.singleton.initialShots, (response) =>
+            // NEW: Set current id = number of spawned agents before + 1.
+            int currentId = i + 1;
+            agent.GetComponent<AgentControl>().id = currentId;
+            
+            // Chain API call: After initialization, send environment data and request shot in one call.
+            StartCoroutine(MiniGolfAPI.InitAgent(currentId, GameManager.singleton.initialShots, (initResponse) =>
             {
-                Debug.Log("Init API response for agent " + i + ": " + response);
+                Debug.Log("Init API response for agent " + currentId + ": " + initResponse);
+                Vector3 ballPos = ball.transform.position;
+                Vector3 holePos = new Vector3(10, 0, 10); // sample value; adjust as needed
+                Vector3[] walls = new Vector3[0];         // sample empty array; adjust as needed
+                StartCoroutine(MiniGolfAPI.RequestShotWithEnvironment(currentId, ballPos, holePos, walls, (shot) =>
+                {
+                    if (shot != null)
+                    {
+                        agent.GetComponent<AgentControl>().ApplyShot(shot.power, shot.direction);
+                    }
+                    else
+                    {
+                        Debug.Log("Shot API call failed for agent " + currentId);
+                    }
+                }));
             }));
         }
 
-
-        // GameObject agent = Instantiate(agentPrefab, ballSpawnPos, Quaternion.identity);
-        // Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
-
         GameManager.singleton.gameStatus = GameStatus.Playing;
-
-        // For each agent, send an init call
-        // foreach (int id in GameManager.singleton.agentIds)
-        // {
-        //     StartCoroutine(MiniGolfAPI.InitAgent(id, GameManager.singleton.initialShots, (response) =>
-        //     {
-        //         Debug.Log("Init API response for agent " + id + ": " + response);
-        //     }));
-        // }
     }
 
     public void ShotTaken()

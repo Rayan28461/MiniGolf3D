@@ -40,18 +40,31 @@ def init_agent(data: InitData):
     return InitResponse(message=f"Agent {data.agent_id} initialized with {data.shots} shots")
 
 # Endpoint to receive environment data
-@app.post("/environment", response_model=EnvironmentResponse)
-def send_environment(data: EnvironmentData):
-    # ...logic to process environment data...
-    return EnvironmentResponse(message=f"Environment data received for agent {data.agent_id}")
+# @app.post("/environment", response_model=EnvironmentResponse)
+# def send_environment(data: EnvironmentData):
+#     # ...logic to process environment data...
+#     return EnvironmentResponse(message=f"Environment data received for agent {data.agent_id}")
 
-# Endpoint to request a shot decision from the AI
-@app.get("/shot", response_model=ShotData)
-def request_shot(agent_id: int):
-    # ...logic to compute shot decision...
-    power = random.uniform(0, 5)
+# # Endpoint to request a shot decision from the AI
+# @app.get("/shot", response_model=ShotData)
+# def request_shot(agent_id: int):
+#     # ...logic to compute shot decision...
+#     power = random.uniform(0, 5)
+#     direction = Vector3(x=random.uniform(-1, 1), y=0, z=random.uniform(-1, 1))
+#     return ShotData(power=power, direction=direction)
+
+# New endpoint to handle combined environment data & shot request.
+@app.post("/shoot", response_model=ShotData)
+def shoot_decision(data: EnvironmentData):
+    # ...logic to compute shot decision based on environment data...
+    power = random.uniform(4, 6)
     direction = Vector3(x=random.uniform(-1, 1), y=0, z=random.uniform(-1, 1))
     return ShotData(power=power, direction=direction)
+
+@app.get("/deduct")
+def deduct_score(agent_id: int):
+    print(f"Deduct score for agent {agent_id}")
+    return {"message": f"Agent {agent_id} score deducted."}
 
 if __name__ == '__main__':  # added main section to run uvicorn
     uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)

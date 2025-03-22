@@ -76,6 +76,55 @@ public class MiniGolfAPI : MonoBehaviour
         }
     }
 
+    // New method to request shot with environment data in one API call
+    public static IEnumerator RequestShotWithEnvironment(int agentId, Vector3 ballPos, Vector3 holePos, Vector3[] walls, Action<ShotData> callback)
+    {
+        string url = $"{BaseUrl}/shoot";
+        // Build the environment data payload, now explicitly including agent_id.
+        EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
+        string jsonData = JsonUtility.ToJson(payload);
+        
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+        
+            yield return request.SendWebRequest();
+        
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
+                callback?.Invoke(shot);
+            }
+            else
+            {
+                Debug.LogError($"Request failed [{request.responseCode}]: {request.error}");
+                callback?.Invoke(null);
+            }
+        }
+    }
+
+    // NEW: API call to notify backend to deduct score for an agent.
+    public static IEnumerator DeductScore(int agentId, Action<string> callback)
+    {
+        string url = $"{BaseUrl}/deduct?agent_id={agentId}";
+        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        {
+             yield return request.SendWebRequest();
+             if (request.result == UnityWebRequest.Result.Success)
+             {
+                 callback?.Invoke(request.downloadHandler.text);
+             }
+             else
+             {
+                 Debug.LogError($"DeductScore failed for agent {agentId}: {request.error}");
+                 callback?.Invoke(null);
+             }
+        }
+    }
+
     // Helper method for error handling
     private static void HandleResponse(UnityWebRequest request, Action<string> callback)
     {
