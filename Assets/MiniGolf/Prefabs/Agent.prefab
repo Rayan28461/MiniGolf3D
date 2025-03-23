@@ -123,4 +123,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MaxForce: 5
+  stopThreshold: 0.1
   id: 0
+  shotCount: 0
