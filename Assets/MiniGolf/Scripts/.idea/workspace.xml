@@ -5,13 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="983c2eee-2dc8-4998-906c-d9a1c9ac48b0" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../GameScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/../GameScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Prefabs/Levels/Level1.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/../Prefabs/Levels/Level1.prefab" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Prefabs/Parts/straight.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/../Prefabs/Parts/straight.prefab" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BallControl.cs" beforeDir="false" afterPath="$PROJECT_DIR$/BallControl.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../../Packages/packages-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../../Packages/packages-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../../UserSettings/EditorUserSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/../../../UserSettings/EditorUserSettings.asset" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../../UserSettings/Layouts/default-6000.dwlt" beforeDir="false" afterPath="$PROJECT_DIR$/../../../UserSettings/Layouts/default-6000.dwlt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -23,10 +17,11 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../.." />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/BallControl.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/GameManager.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/InputManager.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/MeshCollisionDetector.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/AgentControl.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/BallControl.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/GameManager.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/InputManager.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/MeshCollisionDetector.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/MeshDetector.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
@@ -61,6 +56,7 @@
       <workItem from="1741688397823" duration="1215000" />
       <workItem from="1742463234480" duration="2651000" />
       <workItem from="1742553157943" duration="6312000" />
+      <workItem from="1742979733687" duration="2510000" />
     </task>
     <servers />
   </component>

@@ -33,6 +33,7 @@ public class BallControl : MonoBehaviour
     public LayerMask detectionLayer;
     
     public MeshCollisionDetector meshDetector;
+    [SerializeField] private float detectionSphereRadius = 3f;  // New: radius for adjacent object detection
 
     private enum PreventionMode
     {
@@ -109,6 +110,7 @@ public class BallControl : MonoBehaviour
             rgBody.angularVelocity = Vector3.zero;
             areaAffector.SetActive(true);
         }
+        PerformSphericalObjectDetection();  // New: detect adjacent objects
     }
 
     private void FixedUpdate()
@@ -177,11 +179,29 @@ public class BallControl : MonoBehaviour
         return position;
     }
 
+    // New: method to detect adjacent objects via a spherical query
+    private void PerformSphericalObjectDetection()
+    {
+        Collider[] objects = Physics.OverlapSphere(transform.position, detectionSphereRadius);
+        foreach (Collider col in objects)
+        {
+            if (col.gameObject == this.gameObject) continue;
+            Vector3 location = col.transform.position;
+            Bounds bounds = col.bounds;
+            float width = bounds.size.x;
+            float height = bounds.size.y;
+            Debug.Log($"Object: {col.gameObject.name} - Location: {location}, Width: {width}, Height: {height}");
+        }
+    }
+
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, 1.5f);
+        // New: visualize the detection sphere for adjacent object detection
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, detectionSphereRadius);
     }
 #endif
 }
