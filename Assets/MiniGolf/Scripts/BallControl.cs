@@ -172,7 +172,7 @@ public class BallControl : MonoBehaviour
         Vector3 position = Vector3.zero;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity, rayLayer))
+        if (Physics.Raycast(ray, out hit, Mathf.Infinity, rayLayer, QueryTriggerInteraction.Collide))
         {
             position = hit.point;
         }
@@ -190,7 +190,7 @@ public class BallControl : MonoBehaviour
             Bounds bounds = col.bounds;
             float width = bounds.size.x;
             float height = bounds.size.y;
-            Debug.Log($"Object: {col.gameObject.name} - Location: {location}, Width: {width}, Height: {height}");
+            // Debug.Log($"Ball '{gameObject.name}' detected object: {col.gameObject.name} - Location: {location}, Width: {width}, Height: {height}");
         }
     }
 

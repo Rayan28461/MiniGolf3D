@@ -39,11 +39,16 @@ def init_agent(data: InitData):
     print(f"Agent {data.agent_id} initialized with {data.shots} shots")
     return InitResponse(message=f"Agent {data.agent_id} initialized with {data.shots} shots")
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 # Endpoint to receive environment data
-# @app.post("/environment", response_model=EnvironmentResponse)
-# def send_environment(data: EnvironmentData):
-#     # ...logic to process environment data...
-#     return EnvironmentResponse(message=f"Environment data received for agent {data.agent_id}")
+@app.post("/environment", response_model=EnvironmentResponse)
+def send_environment(data: EnvironmentData):
+    # ...logic to process environment data...
+    logging.info("function called")
+    logging.info(f"Received environment data for agent {data.agent_id}")
+    return EnvironmentResponse(message=f"Environment data received for agent {data.agent_id}")
 
 # # Endpoint to request a shot decision from the AI
 # @app.get("/shot", response_model=ShotData)

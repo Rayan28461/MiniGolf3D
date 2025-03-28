@@ -8,9 +8,9 @@ public class LevelManager : MonoBehaviour
     public GameObject ballPrefab, agentPrefab;
     public Vector3 ballSpawnPos;
     public LevelData[] levelDatas;
-    public int numberOfAgents = 1;  // NEW: specify number of agents to create
+    public int numberOfAgents = 5;  // NEW: specify number of agents to create
 
-    private int shotCount = 0;
+    private int shotCount = 5;
 
     private void Awake()
     {
