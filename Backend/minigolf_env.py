@@ -36,7 +36,7 @@ class MiniGolfEnv(gym.Env):
         self.agent_id = agent_id
         self.base_url = "http://127.0.0.1:8000"
         self.shots = 0
-        self.max_shots = 10
+        self.max_shots = 5
         self.ball_position = None
         self.hole_position = None
         self.walls = []
