@@ -532,6 +532,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: holeRound
       objectReference: {fileID: 0}
+    - target: {fileID: 3386229318049345211, guid: 73b77c6bcb83a0d48abd593d617f88bd,
+        type: 3}
+      propertyPath: m_TagString
+      value: Finish
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

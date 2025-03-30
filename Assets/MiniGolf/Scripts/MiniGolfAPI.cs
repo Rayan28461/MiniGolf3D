@@ -36,7 +36,7 @@ public class MiniGolfAPI : MonoBehaviour
     }
 
     // 2. Send environment data (walls, nearby objects, hole position, etc.)
-    public static IEnumerator SendEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, Vector3[] walls, Action<string> callback)
+    public static IEnumerator SendEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<string> callback)
     {
         string url = $"{BaseUrl}/environment";
 
@@ -77,9 +77,10 @@ public class MiniGolfAPI : MonoBehaviour
     }
 
     // New method to request shot with environment data in one API call
-    public static IEnumerator RequestShotWithEnvironment(int agentId, Vector3 ballPos, Vector3 holePos, Vector3[] walls, Action<ShotData> callback)
+    public static IEnumerator RequestShotWithEnvironment(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<ShotData> callback)
     {
-        string url = $"{BaseUrl}/shoot";
+        // Change URL from "/shoot" to "/environment" to match backend endpoints.
+        string url = $"{BaseUrl}/environment";
         // Build the environment data payload, now explicitly including agent_id.
         EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
         string jsonData = JsonUtility.ToJson(payload);
@@ -100,7 +101,7 @@ public class MiniGolfAPI : MonoBehaviour
             }
             else
             {
-                Debug.LogError($"Request failed [{request.responseCode}]: {request.error}");
+                Debug.LogError($"SubmitEnvironmentData failed [{request.responseCode}]: {request.error}");
                 callback?.Invoke(null);
             }
         }
@@ -125,6 +126,33 @@ public class MiniGolfAPI : MonoBehaviour
         }
     }
 
+    // NEW: Submit environment data and wait for shot decision from backend.
+    public static IEnumerator SubmitEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<ShotData> callback)
+    {
+        string url = $"{BaseUrl}/environment";
+        // Build the environment data payload, including agent_id.
+        EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
+        string jsonData = JsonUtility.ToJson(payload);
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            yield return request.SendWebRequest();
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
+                callback?.Invoke(shot);
+            }
+            else
+            {
+                Debug.LogError($"SubmitEnvironmentData failed [{request.responseCode}]: {request.error}");
+                callback?.Invoke(null);
+            }
+        }
+    }
+
     // Helper method for error handling
     private static void HandleResponse(UnityWebRequest request, Action<string> callback)
     {
@@ -134,7 +162,7 @@ public class MiniGolfAPI : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"Request failed [{request.responseCode}]: {request.error}");
+            Debug.LogError($"Request failed [{request.responseCode}]: {request.error}\nResponse: {request.downloadHandler.text}");
             callback?.Invoke(null);
         }
     }
@@ -146,9 +174,9 @@ public class MiniGolfAPI : MonoBehaviour
         public int agent_id;
         public Vector3 ball_position;
         public Vector3 hole_position;
-        public Vector3[] walls;
+        public AgentControl.WallData[] walls;  // Changed type to AgentControl.WallData[]
 
-        public EnvironmentData(int id, Vector3 ball, Vector3 hole, Vector3[] w)
+        public EnvironmentData(int id, Vector3 ball, Vector3 hole, AgentControl.WallData[] w)
         {
             agent_id = id;
             ball_position = ball;
@@ -160,6 +188,7 @@ public class MiniGolfAPI : MonoBehaviour
     [Serializable]
     public class ShotData
     {
+        public int agent_id; // NEW: ID of agent selected by AI
         public float power;
         public Vector3 direction;
     }

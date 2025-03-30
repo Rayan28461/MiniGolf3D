@@ -397,6 +397,7 @@ GameObject:
   m_Component:
   - component: {fileID: 428676214}
   - component: {fileID: 428676215}
+  - component: {fileID: 428676216}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -435,6 +436,18 @@ MonoBehaviour:
   gameStatus: 0
   agentIds: 01000000
   initialShots: 5
+--- !u!114 &428676216
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 428676213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7943d38049a748f47b5f7de8ea8cbb2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &460750279
 GameObject:
   m_ObjectHideFlags: 0
@@ -595,7 +608,7 @@ MonoBehaviour:
     levelPrefab: {fileID: 9151569318176113239, guid: a5beecb27aac45347b00aea64f9b0b40,
       type: 3}
     agentPositions: []
-  numberOfAgents: 0
+  numberOfAgents: 1
 --- !u!1 &479225599
 GameObject:
   m_ObjectHideFlags: 0

@@ -327,7 +327,7 @@ GameObject:
   - component: {fileID: 5729640252216648251}
   m_Layer: 0
   m_Name: Ball
-  m_TagString: Player
+  m_TagString: Ball
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -417,6 +417,7 @@ MonoBehaviour:
   rayLayer:
     serializedVersion: 2
     m_Bits: 4294967295
+  BouncePreventionMode: 1
   visionDistance: 10
   visionAngle: 90
   rayCount: 20
@@ -424,7 +425,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   meshDetector: {fileID: 0}
-  BouncePreventionMode: 1
+  detectionSphereRadius: 3
 --- !u!135 &5729640252216648251
 SphereCollider:
   m_ObjectHideFlags: 0

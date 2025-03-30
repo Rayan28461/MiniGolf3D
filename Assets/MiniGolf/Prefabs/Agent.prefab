@@ -91,7 +91,7 @@ PrefabInstance:
     - target: {fileID: 5572983978374574789, guid: 29164484c8d97814284015c77f35de23,
         type: 3}
       propertyPath: m_TagString
-      value: Untagged
+      value: Agent
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 5572983978374574785, guid: 29164484c8d97814284015c77f35de23, type: 3}
@@ -124,5 +124,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MaxForce: 5
   stopThreshold: 0.1
+  rayLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
   id: 0
   shotCount: 0

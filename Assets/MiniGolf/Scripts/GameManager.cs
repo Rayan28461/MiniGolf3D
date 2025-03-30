@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -10,10 +11,14 @@ public class GameManager : MonoBehaviour
     public int currentLevelIndex;
     [HideInInspector]
     public GameStatus gameStatus = GameStatus.None;
+    public static Vector3 finishPosition;
 
     // Changed to support multiple agents
     public List<int> agentIds;
     public int initialShots = 5;
+
+    // NEW: Reference to the HTTP server component.
+    private HttpServer httpServer;
     
     private void Awake()
     {
@@ -27,13 +32,23 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
         }
 
-        // Debug.Log("Agent IDs on Awake: " + string.Join(", ", agentIds));
-    }
+        GameObject finishObj = GameObject.FindGameObjectWithTag("Finish");
+        if (finishObj != null)
+        {
+            finishPosition = finishObj.transform.position;
+        }
 
-    // Stub method to send ball data.
-    public void SendBallData(Vector3 position, string tag)
-    {
-        Debug.Log("Ball data sent: " + position + " with tag: " + tag);
+        // Get the HttpServer attached to the same GameObject.
+        httpServer = GetComponent<HttpServer>();
+        if (httpServer != null)
+        {
+            Debug.Log("GameManager: HTTP server component attached; server starting.");
+            // HttpServer's Start() method will automatically run.
+        }
+        else
+        {
+            Debug.LogWarning("GameManager: No HTTP server component found. To handle reset requests, attach the HttpServer script.");
+        }
     }
 
     // Updated stub method to request a shot decision from the backend

@@ -15,6 +15,7 @@ class MiniGolfEnv(gym.Env):
         Args:
             agent_id (int): Unique identifier for the agent. Defaults to 1.
                            Use different IDs for different agents when training multiple agents.
+            number_of_agents (int): Total number of agents in Unity.
         """
         super(MiniGolfEnv, self).__init__()
 
@@ -34,7 +35,8 @@ class MiniGolfEnv(gym.Env):
         )
 
         self.agent_id = agent_id
-        self.base_url = "http://127.0.0.1:8000"
+        # self.number_of_agents = number_of_agents
+        self.base_url = "http://127.0.0.1:8001"
         self.shots = 0
         self.max_shots = 5
         self.ball_position = None
@@ -68,19 +70,17 @@ class MiniGolfEnv(gym.Env):
         next_state = self._get_environment_data()
         
         # Calculate Euclidean distance between ball and hole
-        distance_to_hole = np.linalg.norm(
-            next_state[:3] - next_state[3:]  # distance = sqrt((ball_x - hole_x)^2 + (ball_y - hole_y)^2 + (ball_z - hole_z)^2)
-        )
+        distance_to_hole = np.linalg.norm(next_state[:3] - next_state[3:])
         
         # Define reward structure
-        if distance_to_hole < 0.1:  # Ball in hole
+        if distance_to_hole < 0.1:
             reward = 100.0
             done = True
-        elif self.shots >= self.max_shots:  # Too many shots
-            reward = -distance_to_hole  # Negative reward based on final distance
+        elif self.shots >= self.max_shots:
+            reward = -distance_to_hole
             done = True
         else:
-            reward = -0.1  # Small negative reward for each shot to encourage efficiency
+            reward = -1
             done = False
 
         # Update shots counter
@@ -99,10 +99,32 @@ class MiniGolfEnv(gym.Env):
         return next_state, reward, done, info
     
     def _get_environment_data(self) -> np.ndarray:
-        """Helper function to fetch environment data from FastAPI."""
-        env_data = requests.get(f"{self.base_url}/environment").json()
-        ball_pos = env_data["ball_position"]
+        # Replace the single GET call with a loop that waits for a valid response.
+        import time
+        while True:
+            try:
+                response = requests.get(f"{self.base_url}/environment", params={"agent_id": self.agent_id}, timeout=10)
+                response.raise_for_status()
+                env_data = response.json()
+                # Check if the response contains valid position data
+                if "agent_position" in env_data or "ball_position" in env_data:
+                    break
+            except Exception as e:
+                print("Waiting for response from Unity server...", e)
+            time.sleep(0.5)
+
+        # Use "agent_position" if present; otherwise, fallback to "ball_position"
+        if "agent_position" in env_data:
+            ball_pos = env_data["agent_position"]
+        else:
+            ball_pos = env_data["ball_position"]
+
         hole_pos = env_data["hole_position"]
+
+        # If multiple agents data exists, expect lists of positions
+        if "ball_positions" in env_data and "hole_positions" in env_data:
+            ball_pos = env_data["ball_positions"][self.agent_id - 1]
+            hole_pos = env_data["hole_positions"][self.agent_id - 1]
 
         return np.array([
             ball_pos["x"], ball_pos["y"], ball_pos["z"],
@@ -110,23 +132,11 @@ class MiniGolfEnv(gym.Env):
         ])
     
     def reset(self):
-        """Reset the environment and get initial state."""
-        # Reset shots counter
-        self.shots = 0
-        
-        # Initialize environment
-        response = requests.post(
-            f"{self.base_url}/init", 
-            json={"agent_id": self.agent_id, "shots": self.shots}
-        )
-        
-        # Get initial environment state
+        """Reset the environment to its initial state and get initial observation."""
+
         env_data = self._get_environment_data()
-        
-        # Store positions
         self.ball_position = env_data[:3]
         self.hole_position = env_data[3:]
-
         return env_data
     
     def render(self, mode="human"):
@@ -144,12 +154,12 @@ class MiniGolfEnv(gym.Env):
 
 # Example usage
 if __name__ == "__main__":
-    # Create and test the environment
+    # Create and test the environment for a specific agent.
     env = MiniGolfEnv(agent_id=1)
     obs = env.reset()
     
     print("Starting MiniGolf Environment:")
-    for _ in range(10):
+    for _ in range(5):
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
         env.render()

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Controls the AI golf ball based on API decisions.
@@ -21,14 +22,22 @@ public class AgentControl : MonoBehaviour
     // Flag to ensure single shot request when ball stops
     private bool hasRequestedShot = false;
 
+    public static Vector3 finishPosition;
+
+    [System.Serializable]
+    public class WallData {
+        public Vector3 hitPoint;
+        public float width;
+        public float rotation; // Y-axis rotation in degrees
+    }
+
     [System.Serializable]
     public class EnvironmentData
     {
         public int agent_id;
         public Vector3 ball_position;
         public Vector3 hole_position;
-        // Changed property name and type to match backend expectation.
-        public Vector3[] walls;
+        public WallData[] walls; // Changed from Vector3[] to WallData[]
     }
 
     IEnumerator PostEnvironmentData(EnvironmentData data)
@@ -43,11 +52,11 @@ public class AgentControl : MonoBehaviour
 
         yield return request.SendWebRequest();
 
-        if (request.result == UnityWebRequest.Result.Success)
-        {
-            Debug.Log("Environment data sent successfully: " + request.downloadHandler.text);
-        }
-        else
+        if (request.result != UnityWebRequest.Result.Success)
+        // {
+        //     Debug.Log("Environment data sent successfully: " + request.downloadHandler.text);
+        // }
+        // else
         {
             Debug.LogError("Error sending environment data: " + request.error);
         }
@@ -55,8 +64,15 @@ public class AgentControl : MonoBehaviour
 
     private void Awake()
     {
+        instance = this; // NEW: Set the static instance so that it can be referenced in static methods.
         rgBody = GetComponent<Rigidbody>();
         shotCount = 5;
+
+        GameObject finishObj = GameObject.FindGameObjectWithTag("Finish");
+        if (finishObj != null)
+        {
+            finishPosition = finishObj.transform.position;
+        }
         // Start the coroutine to process shots for this agent
         StartCoroutine(ProcessShots());
     }
@@ -68,35 +84,29 @@ public class AgentControl : MonoBehaviour
             // Wait until the ball is stopped.
             yield return new WaitUntil(() => rgBody.linearVelocity.magnitude < stopThreshold);
             
-            // Decrement shot count and send ball data.
             shotCount--;
-            // Compute raycast hit data using ClickedPoint.
-            Vector3 raycastHit = ClickedPoint();
-            GameManager.singleton.SendBallData(transform.position, "NearbyWalls");
-            
             // Gather environment info.
             Vector3 currentBallPos = transform.position;
-            Vector3 holePos = new Vector3(10, 0, 10); // Adjust as needed.
-            
-            // Wrap raycast hit into an array to send as walls.
-            EnvironmentData envData = new EnvironmentData {
-                agent_id = id,
-                ball_position = currentBallPos,
-                hole_position = holePos,
-                walls = new Vector3[] { raycastHit }
-            };
-            StartCoroutine(PostEnvironmentData(envData));
-            
-            // Request shot with environment in one API call.
-            yield return StartCoroutine(MiniGolfAPI.RequestShotWithEnvironment(id, currentBallPos, holePos, null, (shot) =>
+            Vector3 holePos = GameManager.finishPosition; // Adjust as needed.
+            WallData[] uniqueWalls = CollectNearbyWallPointsUsingRaycasts();
+            // Instead of sending environment data and then requesting a shot,
+            // Unity now submits the environment data and awaits the AI's shot decision.
+            yield return StartCoroutine(MiniGolfAPI.SubmitEnvironmentData(id, currentBallPos, holePos, uniqueWalls, (shot) =>
             {
                 if (shot != null)
                 {
-                    ApplyShot(shot.power, shot.direction);
+                    if (shot.agent_id == id) // only apply shot if decision is for this agent
+                    {
+                        ApplyShot(shot.power, shot.direction);
+                    }
+                    else
+                    {
+                        Debug.Log("Shot assigned to agent " + shot.agent_id + " but current agent id is " + id);
+                    }
                 }
                 else
                 {
-                    Debug.Log("Shot API call failed for agent " + id);
+                    Debug.Log("Shot decision not received for agent " + id);
                 }
             }));
             
@@ -137,10 +147,61 @@ public class AgentControl : MonoBehaviour
             transform.position = new Vector3(0, 0.5f, 0);
             rgBody.linearVelocity = Vector3.zero;
         }
-        else if (other.name == "Hole")
+    }
+
+    // NEW: Updated method to collect nearby wall points using raycasts that pass through agents or ball.
+    public static WallData[] CollectNearbyWallPointsUsingRaycasts()
+    {
+        float rayLength = 20f; // Maximum raycast distance
+        int rayCount = 360;    // Cast one ray per degree
+        HashSet<int> uniqueIDs = new HashSet<int>();
+        List<WallData> wallList = new List<WallData>();
+
+        for (int i = 0; i < rayCount; i++)
         {
-            LevelManager.instance.LevelComplete();
+            float rad = i * Mathf.Deg2Rad;
+            Vector3 dir = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad));
+            Ray ray = new Ray(AgentControl.instance.transform.position, dir);
+            RaycastHit[] hits = Physics.RaycastAll(ray, rayLength, AgentControl.instance.rayLayer);
+            if (hits.Length > 0)
+            {
+                System.Array.Sort(hits, (h1, h2) => h1.distance.CompareTo(h2.distance));
+                foreach (RaycastHit hit in hits)
+                {
+                    if (hit.collider.gameObject == AgentControl.instance.gameObject)
+                        continue;
+                    if (hit.collider.CompareTag("Agent") || hit.collider.CompareTag("Ball"))
+                        continue;
+                    int hitID = hit.collider.gameObject.GetInstanceID();
+                    if (!uniqueIDs.Contains(hitID))
+                    {
+                        uniqueIDs.Add(hitID);
+                        WallData wd = new WallData();
+                        wd.hitPoint = hit.point;
+                        wd.width = hit.collider.bounds.size.x;
+                        float rotation = hit.collider.transform.eulerAngles.y;
+                        rotation = (rotation + 180f) % 360f;
+                        if (hit.collider.CompareTag("plus90"))
+                        {
+                            rotation = (rotation + 90f) % 360f;
+                        }
+                        wd.rotation = rotation % 180f;
+                        wallList.Add(wd);
+                    }
+                    break; // Only take the first valid hit per ray.
+                }
+            }
         }
+        // Log the collected walls in Unity.
+        string wallLog = "Collected walls: ";
+        foreach (WallData wall in wallList)
+        {
+            wallLog += $"[Point: {wall.hitPoint}, Width: {wall.width}, Rotation: {wall.rotation}] ";
+        }
+        Debug.Log(wallLog);
+        // Also log to the backend.
+        // AgentControl.instance.StartCoroutine(MiniGolfAPI.LogWalls(wallLog));
+        return wallList.ToArray();
     }
 
     // Updated: method to perform raycast and return the clicked point
@@ -163,4 +224,31 @@ public class AgentControl : MonoBehaviour
             return transform.position;
         }
     }
+
+#if UNITY_EDITOR
+    private void OnDrawGizmos()
+    {
+        // Only draw raycast gizmos when playing
+        if (!Application.isPlaying) return;
+        
+        int rayCount = 360;       // One ray per degree
+        float rayLength = 20f;    // Maximum distance for the raycast
+        for (int i = 0; i < rayCount; i++)
+        {
+            float rad = i * Mathf.Deg2Rad;
+            Vector3 direction = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad));
+            // Perform raycast using the assigned layer mask
+            if (Physics.Raycast(transform.position, direction, out RaycastHit hit, rayLength, rayLayer))
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(transform.position, hit.point);
+            }
+            else
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(transform.position, transform.position + direction * rayLength);
+            }
+        }
+    }
+#endif
 }

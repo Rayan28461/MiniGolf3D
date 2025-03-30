@@ -16,6 +16,8 @@ public class UIManager : MonoBehaviour
 
     public Text ShotText { get { return shotText; } }   //getter for shotText
     public Image PowerBar { get => powerBar; }          //getter for powerBar
+    public GameObject MainMenu { get { return mainMenu; } }
+    public GameObject GameMenu { get { return gameMenu; } }
 
     private void Awake()
     {

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class LevelManager : MonoBehaviour
 {
@@ -8,7 +9,7 @@ public class LevelManager : MonoBehaviour
     public GameObject ballPrefab, agentPrefab;
     public Vector3 ballSpawnPos;
     public LevelData[] levelDatas;
-    public int numberOfAgents = 5;  // NEW: specify number of agents to create
+    public int numberOfAgents;
 
     private int shotCount = 5;
 
@@ -20,9 +21,33 @@ public class LevelManager : MonoBehaviour
             Destroy(gameObject);
     }
 
+    public void ResetLevel()
+    {
+        // int currentLevelIndex = GameManager.singleton.currentLevelIndex;
+        // GameManager.singleton.gameStatus = GameStatus.None;
+        // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        // Debug.Log("ResetLevel called: resetting current level to its initial state.");
+        // GameManager.singleton.gameStatus = GameStatus.Playing;
+        // // Use public properties from UIManager to control UI.
+        // UIManager.instance.MainMenu.SetActive(false);
+        // UIManager.instance.GameMenu.SetActive(true);
+        // LevelManager.instance.SpawnLevel(currentLevelIndex);
+        // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        // SceneManager.LoadScene(currentLevelIndex);
+
+        // LevelFailed();
+        
+        // Hours wasted on these 2 lines : 5h
+        GameManager.singleton.gameStatus = GameStatus.Failed;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+    
     public void SpawnLevel(int levelIndex)
     {
-        
+        // NEW: Send the agent count to the backend.
+        StartCoroutine(SendAgentCount());
+
         // Spawn the level prefab.
         Instantiate(levelDatas[levelIndex].levelPrefab, Vector3.zero, Quaternion.identity);
         shotCount = levelDatas[levelIndex].shotCount;
@@ -53,17 +78,17 @@ public class LevelManager : MonoBehaviour
             
             agents.Add(agent); // Store agent
 
-            // NEW: Set current id = number of spawned agents before + 1.
+            // Set current id = number of spawned agents before + 1.
             int currentId = i + 1;
             agent.GetComponent<AgentControl>().id = currentId;
             
             // Chain API call: After initialization, send environment data and request shot in one call.
             StartCoroutine(MiniGolfAPI.InitAgent(currentId, GameManager.singleton.initialShots, (initResponse) =>
             {
-                Debug.Log("Init API response for agent " + currentId + ": " + initResponse);
                 Vector3 ballPos = ball.transform.position;
-                Vector3 holePos = new Vector3(10, 0, 10); // sample value; adjust as needed
-                Vector3[] walls = new Vector3[0];         // sample empty array; adjust as needed
+                Vector3 holePos = GameManager.finishPosition;
+                // UPDATED: Use an empty SerializedWallData array instead of a Vector3[].
+                AgentControl.WallData[] walls = AgentControl.CollectNearbyWallPointsUsingRaycasts();
                 StartCoroutine(MiniGolfAPI.RequestShotWithEnvironment(currentId, ballPos, holePos, walls, (shot) =>
                 {
                     if (shot != null)
@@ -79,6 +104,29 @@ public class LevelManager : MonoBehaviour
         }
 
         GameManager.singleton.gameStatus = GameStatus.Playing;
+    }
+
+    // NEW: Coroutine to send agent count to backend
+    System.Collections.IEnumerator SendAgentCount()
+    {
+        string url = "http://127.0.0.1:8000/agent_count";
+        string jsonData = "{\"agent_count\": " + numberOfAgents + "}";
+        using (UnityEngine.Networking.UnityWebRequest request = new UnityEngine.Networking.UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+            request.uploadHandler = new UnityEngine.Networking.UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new UnityEngine.Networking.DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            yield return request.SendWebRequest();
+            if (request.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("SendAgentCount failed: " + request.error);
+            }
+            else
+            {
+                Debug.Log("Agent count sent successfully: " + request.downloadHandler.text);
+            }
+        }
     }
 
     public void ShotTaken()
