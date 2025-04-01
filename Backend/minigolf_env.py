@@ -35,16 +35,14 @@ class MiniGolfEnv(gym.Env):
         )
 
         self.agent_id = agent_id
-        # self.number_of_agents = number_of_agents
+        self.shots = 0           # NEW: track number of shots taken
+        self.max_shots = 5       # NEW: maximum allowed shots per episode
         self.base_url = "http://127.0.0.1:8001"
-        self.shots = 0
-        self.max_shots = 5
         self.ball_position = None
         self.hole_position = None
         self.walls = []
 
     def step(self, action):
-        """Apply action (shot) and return new state, reward, done, info."""
         power, direction_x, direction_z = action
 
         # Prepare environment data for shot
@@ -82,55 +80,49 @@ class MiniGolfEnv(gym.Env):
         else:
             reward = -1
             done = False
-
-        # Update shots counter
+        
+        # Update shots counter and print debug info
         self.shots += 1
+        print(f"[DEBUG] Agent {self.agent_id} took shot #{self.shots} (max {self.max_shots})")
         
         # Update positions
         self.ball_position = next_state[:3]
         self.hole_position = next_state[3:]
-
+        
         info = {
             "shots": self.shots,
             "distance_to_hole": distance_to_hole,
             "agent_id": self.agent_id
         }
-
         return next_state, reward, done, info
-    
+
     def _get_environment_data(self) -> np.ndarray:
-        # Replace the single GET call with a loop that waits for a valid response.
         import time
         while True:
             try:
                 response = requests.get(f"{self.base_url}/environment", params={"agent_id": self.agent_id}, timeout=10)
                 response.raise_for_status()
                 env_data = response.json()
-                # Check if the response contains valid position data
+                # Check if valid position data is available
                 if "agent_position" in env_data or "ball_position" in env_data:
                     break
             except Exception as e:
                 print("Waiting for response from Unity server...", e)
             time.sleep(0.5)
-
-        # Use "agent_position" if present; otherwise, fallback to "ball_position"
+        
         if "agent_position" in env_data:
             ball_pos = env_data["agent_position"]
         else:
             ball_pos = env_data["ball_position"]
-
         hole_pos = env_data["hole_position"]
-
-        # If multiple agents data exists, expect lists of positions
         if "ball_positions" in env_data and "hole_positions" in env_data:
             ball_pos = env_data["ball_positions"][self.agent_id - 1]
             hole_pos = env_data["hole_positions"][self.agent_id - 1]
-
         return np.array([
             ball_pos["x"], ball_pos["y"], ball_pos["z"],
             hole_pos["x"], hole_pos["y"], hole_pos["z"]
         ])
-    
+
     def reset(self):
         """Reset the environment to its initial state and get initial observation."""
 
@@ -138,7 +130,7 @@ class MiniGolfEnv(gym.Env):
         self.ball_position = env_data[:3]
         self.hole_position = env_data[3:]
         return env_data
-    
+
     def render(self, mode="human"):
         """Render the environment."""
         if mode == "human":
@@ -157,7 +149,6 @@ if __name__ == "__main__":
     # Create and test the environment for a specific agent.
     env = MiniGolfEnv(agent_id=1)
     obs = env.reset()
-    
     print("Starting MiniGolf Environment:")
     for _ in range(5):
         action = env.action_space.sample()
@@ -166,5 +157,3 @@ if __name__ == "__main__":
         if done:
             print(f"Episode finished with {info['shots']} shots!")
             obs = env.reset()
-
-

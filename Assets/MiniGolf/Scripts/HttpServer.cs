@@ -93,7 +93,10 @@ public class HttpServer : MonoBehaviour
                         ResetAction = () => {
                             if (LevelManager.instance != null)
                             {
+                                // Reset the level
                                 LevelManager.instance.ResetLevel();
+                                // After the reset is processed, notify the backend
+                                StartCoroutine(NotifyResetComplete());
                             }
                             else
                             {
@@ -155,5 +158,24 @@ public class HttpServer : MonoBehaviour
             listener.Stop();
         if (serverThread != null && serverThread.IsAlive)
             serverThread.Join();
+    }
+
+    // Add this new method to notify the backend that reset is complete
+    private System.Collections.IEnumerator NotifyResetComplete()
+    {
+        Debug.Log("HttpServer: Notifying backend that reset is complete...");
+        string url = "http://127.0.0.1:8000/reset_complete";
+        using (UnityEngine.Networking.UnityWebRequest request = UnityEngine.Networking.UnityWebRequest.PostWwwForm(url, ""))
+        {
+            yield return request.SendWebRequest();
+            if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                Debug.Log("Reset completion notification sent successfully.");
+            }
+            else
+            {
+                Debug.LogError("Failed to send reset completion notification: " + request.error);
+            }
+        }
     }
 }

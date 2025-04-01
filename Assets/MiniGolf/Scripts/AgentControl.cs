@@ -85,6 +85,11 @@ public class AgentControl : MonoBehaviour
             yield return new WaitUntil(() => rgBody.linearVelocity.magnitude < stopThreshold);
             
             shotCount--;
+            Debug.Log("[DEBUG] Agent " + id + " has completed " + (5 - shotCount) + " shots.");
+            
+            // Send shot count update to backend
+            StartCoroutine(UpdateShotCount());
+            
             // Gather environment info.
             Vector3 currentBallPos = transform.position;
             Vector3 holePos = GameManager.finishPosition; // Adjust as needed.
@@ -115,6 +120,40 @@ public class AgentControl : MonoBehaviour
             // Then wait until it stops again before next shot.
             yield return new WaitUntil(() => rgBody.linearVelocity.magnitude < stopThreshold);
         }
+    }
+
+    // Add this method to update the backend shot count
+    private IEnumerator UpdateShotCount()
+    {
+        string url = $"{MiniGolfAPI.BaseUrl}/update_shots";
+        string jsonData = JsonUtility.ToJson(new ShotUpdateData { agent_id = id, shots_remaining = shotCount });
+        
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            
+            yield return request.SendWebRequest();
+            
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log($"Shot count update sent successfully for agent {id}");
+            }
+            else
+            {
+                Debug.LogError($"Error sending shot count update: {request.error}");
+            }
+        }
+    }
+
+    // Add this class for serializing shot update data
+    [System.Serializable]
+    public class ShotUpdateData
+    {
+        public int agent_id;
+        public int shots_remaining;
     }
 
     /// <summary>
