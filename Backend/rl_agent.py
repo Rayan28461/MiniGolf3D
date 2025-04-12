@@ -1,7 +1,7 @@
 import os
-import random
-import numpy as np
-import gym
+# import random
+# import numpy as np
+# import gym
 from minigolf_env import MiniGolfEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -57,7 +57,7 @@ class ShotsTrackingCallback(BaseCallback):
             retry_count = 0
             while not success and retry_count < 5:
                 try:
-                    reset_response = requests.post("http://127.0.0.1:8001/reset_environment", timeout=5, json={})
+                    reset_response = requests.post("http://127.0.0.1:8001/reset", timeout=5, json={})
                     if reset_response.status_code == 200:
                         print("[DEBUG] Reset confirmed. Moving to next generation...")
                         success = True
@@ -85,7 +85,7 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     env_fns = [make_env(i+1) for i in range(num_agents)]
     # Wrap each environment to ensure it sets default shot tracking.
     vec_env = DummyVecEnv(env_fns)
-    device = "cuda" if torch.cuda.is_available() else "cpu"  # NEW: choose device
+    device = "cuda" if torch.cuda.is_available() else "cpu" # choose device
     model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
@@ -159,7 +159,7 @@ def calculate_shot(env_data: Dict) -> Dict:
     return shot
 
 # NEW: Helper to get latest state from Unity.
-def get_latest_state(agent_id: int) -> Dict:
+def get_latest_state(agent_id: int) -> Dict: # THIS IS CALLED IN THE COMMENTED CALC_SHOT. WHY IS IT USED?
     url = f"http://127.0.0.1:8001/environment?agent_id={agent_id}"
     try:
         response = requests.get(url, timeout=5)
@@ -172,17 +172,9 @@ def get_latest_state(agent_id: int) -> Dict:
 # Manual training command; run with: python rl_agent.py -train
 if __name__ == "__main__":
     import sys
-    if "-train" in sys.argv:
-        agent_count = wait_for_agent_count()
-        print(f"Manual training: Detected {agent_count} agents from backend.")
+    if "--train" in sys.argv:
+        agent_count = 1
+        print(f"Manual training: Detected {agent_count} agents.")
         train_rl_agent(num_agents=agent_count, total_timesteps=20000)
     else:
-        # Simple test of calculate_shot() with dummy environment data.
-        dummy_env = {
-            "agent_id": 1,
-            "ball_position": {"x": 0, "y": 0, "z": 0},
-            "hole_position": {"x": 10, "y": 0, "z": 10},
-            "walls": []
-        }
-        shot = calculate_shot(dummy_env)
-        print("Shot computed:", shot)
+        print("No training command detected. Exiting.")
