@@ -49,7 +49,7 @@ public class LevelManager : MonoBehaviour
         StartCoroutine(SendAgentCount());
 
         // Spawn the level prefab.
-        Instantiate(levelDatas[levelIndex].levelPrefab, Vector3.zero, Quaternion.identity);
+        Instantiate(levelDatas[levelIndex].levelPrefab, Vector3.zero, levelDatas[levelIndex].levelPrefab.transform.rotation);
         shotCount = levelDatas[levelIndex].shotCount;
         UIManager.instance.ShotText.text = shotCount.ToString();
 
