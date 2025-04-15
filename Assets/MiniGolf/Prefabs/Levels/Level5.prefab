@@ -117,7 +117,7 @@ GameObject:
   - component: {fileID: 6980152553226691707}
   - component: {fileID: 6382954702965529044}
   m_Layer: 0
-  m_Name: Destroyer (2)
+  m_Name: Destroyer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -170,7 +170,7 @@ GameObject:
   - component: {fileID: 7085344122450968809}
   - component: {fileID: 7613384378114563900}
   m_Layer: 0
-  m_Name: Destroyer (5)
+  m_Name: Destroyer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -223,7 +223,7 @@ GameObject:
   - component: {fileID: 3271248283313578903}
   - component: {fileID: 918127686722074070}
   m_Layer: 0
-  m_Name: Destroyer (4)
+  m_Name: Destroyer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -276,7 +276,7 @@ GameObject:
   - component: {fileID: 429941206188851014}
   - component: {fileID: 2370838193357802583}
   m_Layer: 0
-  m_Name: Destroyer (1)
+  m_Name: Destroyer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -329,7 +329,7 @@ GameObject:
   - component: {fileID: 2933208854582542546}
   - component: {fileID: 2365921219516377256}
   m_Layer: 0
-  m_Name: Destroyer (3)
+  m_Name: Destroyer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
