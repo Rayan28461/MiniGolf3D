@@ -17,6 +17,10 @@ public class GameManager : MonoBehaviour
     public List<int> agentIds;
     public int initialShots = 5;
 
+    // Updated scene names to match the exact names in build settings
+    public string mainMenuSceneName = "NatureStarterKit2/Scene/Demo";
+    public string gameLevelSceneName = "MiniGolf/GameScene";
+
     // NEW: Reference to the HTTP server component.
     private HttpServer httpServer;
     
@@ -48,6 +52,49 @@ public class GameManager : MonoBehaviour
         else
         {
             Debug.LogWarning("GameManager: No HTTP server component found. To handle reset requests, attach the HttpServer script.");
+        }
+    }
+
+    // NEW: Method to switch to level selection scene
+    public void SwitchToLevelSelection()
+    {
+        gameStatus = GameStatus.None;
+        Debug.Log("Attempting to load scene: " + gameLevelSceneName);
+        
+        // Use SceneManager.LoadScene with LoadSceneMode.Single to ensure proper scene loading
+        try {
+            SceneManager.LoadScene(1); // Load scene by build index (index 1 should be your game level)
+        }
+        catch (System.Exception e) {
+            Debug.LogError("Failed to load scene by index. Error: " + e.Message);
+            try {
+                // Fallback to loading scene by name
+                SceneManager.LoadScene("MiniGolf/GameScene");
+            }
+            catch (System.Exception ex) {
+                Debug.LogError("Failed to load scene by name too. Error: " + ex.Message);
+            }
+        }
+    }
+    
+    // NEW: Method to return to main menu
+    public void ReturnToMainMenu()
+    {
+        gameStatus = GameStatus.None;
+        Debug.Log("Attempting to load scene: " + mainMenuSceneName);
+        
+        try {
+            SceneManager.LoadScene(0); // Load scene by build index (index 0 should be your main menu)
+        }
+        catch (System.Exception e) {
+            Debug.LogError("Failed to load scene by index. Error: " + e.Message);
+            try {
+                // Fallback to loading scene by name
+                SceneManager.LoadScene("NatureStarterKit2/Scene/Demo");
+            }
+            catch (System.Exception ex) {
+                Debug.LogError("Failed to load scene by name too. Error: " + ex.Message);
+            }
         }
     }
 

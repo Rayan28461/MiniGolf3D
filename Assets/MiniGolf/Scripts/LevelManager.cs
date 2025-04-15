@@ -23,21 +23,6 @@ public class LevelManager : MonoBehaviour
 
     public void ResetLevel()
     {
-        // int currentLevelIndex = GameManager.singleton.currentLevelIndex;
-        // GameManager.singleton.gameStatus = GameStatus.None;
-        // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-        // Debug.Log("ResetLevel called: resetting current level to its initial state.");
-        // GameManager.singleton.gameStatus = GameStatus.Playing;
-        // // Use public properties from UIManager to control UI.
-        // UIManager.instance.MainMenu.SetActive(false);
-        // UIManager.instance.GameMenu.SetActive(true);
-        // LevelManager.instance.SpawnLevel(currentLevelIndex);
-        // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-
-        // SceneManager.LoadScene(currentLevelIndex);
-
-        // LevelFailed();
-        
         // Hours wasted on these 2 lines : 5h
         GameManager.singleton.gameStatus = GameStatus.Failed;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
@@ -45,7 +30,7 @@ public class LevelManager : MonoBehaviour
     
     public void SpawnLevel(int levelIndex)
     {
-        // NEW: Send the agent count to the backend.
+        // Send the agent count to the backend.
         StartCoroutine(SendAgentCount());
 
         // Spawn the level prefab.
@@ -106,25 +91,21 @@ public class LevelManager : MonoBehaviour
         GameManager.singleton.gameStatus = GameStatus.Playing;
     }
 
-    // NEW: Coroutine to send agent count to backend
+    // Coroutine to send agent count to backend
     System.Collections.IEnumerator SendAgentCount()
     {
-        string url = "http://127.0.0.1:8000/agent_count";
-        string jsonData = "{\"agent_count\": " + numberOfAgents + "}";
-        using (UnityEngine.Networking.UnityWebRequest request = new UnityEngine.Networking.UnityWebRequest(url, "POST"))
+        string url = $"{MiniGolfAPI.BaseUrl}/set_agent_count?count={numberOfAgents}";
+        using (UnityEngine.Networking.UnityWebRequest www = UnityEngine.Networking.UnityWebRequest.Get(url))
         {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UnityEngine.Networking.UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new UnityEngine.Networking.DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-            yield return request.SendWebRequest();
-            if (request.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+            yield return www.SendWebRequest();
+            
+            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
             {
-                Debug.LogError("SendAgentCount failed: " + request.error);
+                Debug.Log("Agent count sent successfully: " + numberOfAgents);
             }
             else
             {
-                Debug.Log("Agent count sent successfully: " + request.downloadHandler.text);
+                Debug.LogError("Failed to send agent count: " + www.error);
             }
         }
     }
