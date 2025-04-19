@@ -88,7 +88,7 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
-    model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1))
+    model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
     model.save(MODEL_PATH)
     print("Training complete and model saved to", MODEL_PATH + ".zip")
     return model
