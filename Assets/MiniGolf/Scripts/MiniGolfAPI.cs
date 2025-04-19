@@ -4,108 +4,108 @@ using UnityEngine;
 using UnityEngine.Networking;
 using System.Text;
 
-[Serializable]
-public class InitDataJson  // new helper class for /init endpoint
-{
-    public int agent_id;
-    public int shots;
-}
+// [Serializable]
+// public class InitDataJson  // new helper class for /init endpoint
+// {
+//     public int agent_id;
+//     public int shots;
+// }
 
 public class MiniGolfAPI : MonoBehaviour
 {
     public static string BaseUrl = "http://127.0.0.1:8000"; // Replace with actual API URL
 
-    // 1. Initialize the agent with ID and shots
-    public static IEnumerator InitAgent(int agentId, int shots, Action<string> callback)
-    {
-        string url = $"{BaseUrl}/init";
-        // Use the new serializable class instead of an anonymous type
-        InitDataJson data = new InitDataJson { agent_id = agentId, shots = shots };
-        string jsonData = JsonUtility.ToJson(data);
+    // // 1. Initialize the agent with ID and shots
+    // public static IEnumerator InitAgent(int agentId, int shots, Action<string> callback)
+    // {
+    //     string url = $"{BaseUrl}/init";
+    //     // Use the new serializable class instead of an anonymous type
+    //     InitDataJson data = new InitDataJson { agent_id = agentId, shots = shots };
+    //     string jsonData = JsonUtility.ToJson(data);
 
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
-        {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+    //     using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+    //     {
+    //         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+    //         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+    //         request.downloadHandler = new DownloadHandlerBuffer();
+    //         request.SetRequestHeader("Content-Type", "application/json");
 
-            yield return request.SendWebRequest();
-            HandleResponse(request, callback);
-        }
-    }
+    //         yield return request.SendWebRequest();
+    //         HandleResponse(request, callback);
+    //     }
+    // }
 
-    // 2. Send environment data (walls, nearby objects, hole position, etc.)
-    public static IEnumerator SendEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<string> callback)
-    {
-        string url = $"{BaseUrl}/environment";
+    // // 2. Send environment data (walls, nearby objects, hole position, etc.)
+    // public static IEnumerator SendEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<string> callback)
+    // {
+    //     string url = $"{BaseUrl}/environment";
 
-        // Convert environment data to JSON
-        string jsonData = JsonUtility.ToJson(new EnvironmentData(agentId, ballPos, holePos, walls));
+    //     // Convert environment data to JSON
+    //     string jsonData = JsonUtility.ToJson(new EnvironmentData(agentId, ballPos, holePos, walls));
 
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
-        {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+    //     using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+    //     {
+    //         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+    //         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+    //         request.downloadHandler = new DownloadHandlerBuffer();
+    //         request.SetRequestHeader("Content-Type", "application/json");
 
-            yield return request.SendWebRequest();
-            HandleResponse(request, callback);
-        }
-    }
+    //         yield return request.SendWebRequest();
+    //         HandleResponse(request, callback);
+    //     }
+    // }
 
-    // 3. Request a shot decision from the AI
-    public static IEnumerator RequestShot(int agentId, Action<ShotData> callback)
-    {
-        string url = $"{BaseUrl}/shot?agent_id={agentId}";
+    // // 3. Request a shot decision from the AI
+    // public static IEnumerator RequestShot(int agentId, Action<ShotData> callback)
+    // {
+    //     string url = $"{BaseUrl}/shot?agent_id={agentId}";
 
-        using (UnityWebRequest request = UnityWebRequest.Get(url))
-        {
-            yield return request.SendWebRequest();
+    //     using (UnityWebRequest request = UnityWebRequest.Get(url))
+    //     {
+    //         yield return request.SendWebRequest();
 
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
-                callback?.Invoke(shot);
-            }
-            else
-            {
-                Debug.LogError($"Shot request failed [{request.responseCode}]: {request.error}");
-            }
-        }
-    }
+    //         if (request.result == UnityWebRequest.Result.Success)
+    //         {
+    //             ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
+    //             callback?.Invoke(shot);
+    //         }
+    //         else
+    //         {
+    //             Debug.LogError($"Shot request failed [{request.responseCode}]: {request.error}");
+    //         }
+    //     }
+    // }
 
-    // New method to request shot with environment data in one API call
-    public static IEnumerator RequestShotWithEnvironment(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<ShotData> callback)
-    {
-        // Change URL from "/shoot" to "/environment" to match backend endpoints.
-        string url = $"{BaseUrl}/environment";
-        // Build the environment data payload, now explicitly including agent_id.
-        EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
-        string jsonData = JsonUtility.ToJson(payload);
+    // // New method to request shot with environment data in one API call
+    // public static IEnumerator RequestShotWithEnvironment(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<ShotData> callback)
+    // {
+    //     // Change URL from "/shoot" to "/environment" to match backend endpoints.
+    //     string url = $"{BaseUrl}/environment";
+    //     // Build the environment data payload, now explicitly including agent_id.
+    //     EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
+    //     string jsonData = JsonUtility.ToJson(payload);
         
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
-        {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+    //     using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+    //     {
+    //         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+    //         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+    //         request.downloadHandler = new DownloadHandlerBuffer();
+    //         request.SetRequestHeader("Content-Type", "application/json");
         
-            yield return request.SendWebRequest();
+    //         yield return request.SendWebRequest();
         
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
-                callback?.Invoke(shot);
-            }
-            else
-            {
-                Debug.LogError($"SubmitEnvironmentData failed [{request.responseCode}]: {request.error}");
-                callback?.Invoke(null);
-            }
-        }
-    }
+    //         if (request.result == UnityWebRequest.Result.Success)
+    //         {
+    //             ShotData shot = JsonUtility.FromJson<ShotData>(request.downloadHandler.text);
+    //             callback?.Invoke(shot);
+    //         }
+    //         else
+    //         {
+    //             Debug.LogError($"SubmitEnvironmentData failed [{request.responseCode}]: {request.error}");
+    //             callback?.Invoke(null);
+    //         }
+    //     }
+    // }
 
     // NEW: API call to notify backend to deduct score for an agent.
     public static IEnumerator DeductScore(int agentId, Action<string> callback)
@@ -127,8 +127,13 @@ public class MiniGolfAPI : MonoBehaviour
     }
 
     // NEW: Submit environment data and wait for shot decision from backend.
-    public static IEnumerator SubmitEnvironmentData(int agentId, Vector3 ballPos, Vector3 holePos, AgentControl.WallData[] walls, Action<ShotData> callback)
-    {
+    public static IEnumerator SubmitEnvironmentData(
+        int agentId, 
+        Vector3 ballPos, 
+        Vector3 holePos, 
+        AgentControl.WallData[] walls, 
+        Action<ShotData> callback
+    ) {
         string url = $"{BaseUrl}/environment";
         // Build the environment data payload, including agent_id.
         EnvironmentData payload = new EnvironmentData(agentId, ballPos, holePos, walls);
@@ -153,19 +158,19 @@ public class MiniGolfAPI : MonoBehaviour
         }
     }
 
-    // Helper method for error handling
-    private static void HandleResponse(UnityWebRequest request, Action<string> callback)
-    {
-        if (request.result == UnityWebRequest.Result.Success)
-        {
-            callback?.Invoke(request.downloadHandler.text);
-        }
-        else
-        {
-            Debug.LogError($"Request failed [{request.responseCode}]: {request.error}\nResponse: {request.downloadHandler.text}");
-            callback?.Invoke(null);
-        }
-    }
+    // // Helper method for error handling
+    // private static void HandleResponse(UnityWebRequest request, Action<string> callback)
+    // {
+    //     if (request.result == UnityWebRequest.Result.Success)
+    //     {
+    //         callback?.Invoke(request.downloadHandler.text);
+    //     }
+    //     else
+    //     {
+    //         Debug.LogError($"Request failed [{request.responseCode}]: {request.error}\nResponse: {request.downloadHandler.text}");
+    //         callback?.Invoke(null);
+    //     }
+    // }
 
     // Structs for JSON serialization
     [Serializable]

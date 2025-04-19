@@ -40,27 +40,27 @@ public class AgentControl : MonoBehaviour
         public WallData[] walls; // Changed from Vector3[] to WallData[]
     }
 
-    IEnumerator PostEnvironmentData(EnvironmentData data)
-    {
-        string jsonData = JsonUtility.ToJson(data);
-        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-        // updated backend url
-        UnityWebRequest request = new UnityWebRequest("http://127.0.0.1:8000/environment", "POST");
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-        request.downloadHandler = new DownloadHandlerBuffer();
-        request.SetRequestHeader("Content-Type", "application/json");
+    // IEnumerator PostEnvironmentData(EnvironmentData data)
+    // {
+    //     string jsonData = JsonUtility.ToJson(data);
+    //     byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+    //     // updated backend url
+    //     UnityWebRequest request = new UnityWebRequest("http://127.0.0.1:8000/environment", "POST");
+    //     request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+    //     request.downloadHandler = new DownloadHandlerBuffer();
+    //     request.SetRequestHeader("Content-Type", "application/json");
 
-        yield return request.SendWebRequest();
+    //     yield return request.SendWebRequest();
 
-        if (request.result != UnityWebRequest.Result.Success)
-        // {
-        //     Debug.Log("Environment data sent successfully: " + request.downloadHandler.text);
-        // }
-        // else
-        {
-            Debug.LogError("Error sending environment data: " + request.error);
-        }
-    }
+    //     if (request.result != UnityWebRequest.Result.Success)
+    //     {
+    //         Debug.Log("Environment data sent successfully: " + request.downloadHandler.text);
+    //     }
+    //     else
+    //     {
+    //         Debug.LogError("Error sending environment data: " + request.error);
+    //     }
+    // }
 
     private void Awake()
     {
@@ -74,7 +74,7 @@ public class AgentControl : MonoBehaviour
             finishPosition = finishObj.transform.position;
         }
         // Start the coroutine to process shots for this agent
-        StartCoroutine(ProcessShots());
+        // StartCoroutine(ProcessShots());
     }
 
     IEnumerator ProcessShots()
@@ -120,6 +120,31 @@ public class AgentControl : MonoBehaviour
             // Then wait until it stops again before next shot.
             yield return new WaitUntil(() => rgBody.linearVelocity.magnitude < stopThreshold);
         }
+    }
+
+    public float getBallVelocityMagnitude() {
+        return rgBody.linearVelocity.magnitude;
+    }
+
+    public MiniGolfAPI.EnvironmentData getEnvironmentData() {
+        Vector3 currentBallPos = transform.position;
+        Vector3 holePos = finishPosition; // Adjust as needed.
+        
+        // Get the wall data
+        WallData[] uniqueWalls = CollectNearbyWallPointsUsingRaycasts();
+        
+        // Create and return the environment data
+        return new MiniGolfAPI.EnvironmentData(id, currentBallPos, holePos, uniqueWalls);
+    }
+
+    public static AgentControl GetAgentById(int agentId) {
+        AgentControl[] agents = FindObjectsOfType<AgentControl>();
+        foreach (var agent in agents) {
+            if (agent.id == agentId) {
+                return agent;
+            }
+        }
+        return instance; // Fall back to the singleton instance
     }
 
     // Add this method to update the backend shot count
@@ -243,26 +268,26 @@ public class AgentControl : MonoBehaviour
         return wallList.ToArray();
     }
 
-    // Updated: method to perform raycast and return the clicked point
-    private Vector3 ClickedPoint()
-    {
-        float sphereRadius = 5f; // adjust as needed
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, sphereRadius, rayLayer, QueryTriggerInteraction.Collide);
-        if (hitColliders.Length > 0)
-        {
-            Vector3 avgPoint = Vector3.zero;
-            foreach (Collider hit in hitColliders)
-            {
-                avgPoint += hit.transform.position;
-            }
-            avgPoint /= hitColliders.Length;
-            return avgPoint;
-        }
-        else
-        {
-            return transform.position;
-        }
-    }
+    // // Updated: method to perform raycast and return the clicked point
+    // private Vector3 ClickedPoint()
+    // {
+    //     float sphereRadius = 5f; // adjust as needed
+    //     Collider[] hitColliders = Physics.OverlapSphere(transform.position, sphereRadius, rayLayer, QueryTriggerInteraction.Collide);
+    //     if (hitColliders.Length > 0)
+    //     {
+    //         Vector3 avgPoint = Vector3.zero;
+    //         foreach (Collider hit in hitColliders)
+    //         {
+    //             avgPoint += hit.transform.position;
+    //         }
+    //         avgPoint /= hitColliders.Length;
+    //         return avgPoint;
+    //     }
+    //     else
+    //     {
+    //         return transform.position;
+    //     }
+    // }
 
 #if UNITY_EDITOR
     private void OnDrawGizmos()

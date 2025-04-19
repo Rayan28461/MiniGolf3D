@@ -15,6 +15,7 @@ public class LevelManager : MonoBehaviour
 
     private void Awake()
     {
+        Debug.Log("[DEBUG] from LevelManager: Level Awake()");
         if (instance == null)
             instance = this;
         else
@@ -39,8 +40,8 @@ public class LevelManager : MonoBehaviour
         UIManager.instance.ShotText.text = shotCount.ToString();
 
         // Instantiate the ball and set the camera target.
-        GameObject ball = Instantiate(ballPrefab, ballSpawnPos, Quaternion.identity);
-        CameraFollow.instance.SetTarget(ball);
+        // GameObject ball = Instantiate(ballPrefab, ballSpawnPos, Quaternion.identity);
+        // CameraFollow.instance.SetTarget(ball);
 
         List<GameObject> agents = new List<GameObject>(); // Store spawned agents
 
@@ -54,7 +55,7 @@ public class LevelManager : MonoBehaviour
             GameObject agent = Instantiate(agentPrefab, spawnPos, Quaternion.identity);
 
             // Ignore collision with the ball
-            Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
+            // Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
             // Ignore collision with other agents
             foreach (GameObject otherAgent in agents)
             {
@@ -68,24 +69,24 @@ public class LevelManager : MonoBehaviour
             agent.GetComponent<AgentControl>().id = currentId;
             
             // Chain API call: After initialization, send environment data and request shot in one call.
-            StartCoroutine(MiniGolfAPI.InitAgent(currentId, GameManager.singleton.initialShots, (initResponse) =>
-            {
-                Vector3 ballPos = ball.transform.position;
-                Vector3 holePos = GameManager.finishPosition;
-                // UPDATED: Use an empty SerializedWallData array instead of a Vector3[].
-                AgentControl.WallData[] walls = AgentControl.CollectNearbyWallPointsUsingRaycasts();
-                StartCoroutine(MiniGolfAPI.RequestShotWithEnvironment(currentId, ballPos, holePos, walls, (shot) =>
-                {
-                    if (shot != null)
-                    {
-                        agent.GetComponent<AgentControl>().ApplyShot(shot.power, shot.direction);
-                    }
-                    else
-                    {
-                        Debug.Log("Shot API call failed for agent " + currentId);
-                    }
-                }));
-            }));
+            // StartCoroutine(MiniGolfAPI.InitAgent(currentId, GameManager.singleton.initialShots, (initResponse) =>
+            // {
+            //     // Vector3 ballPos = ball.transform.position;
+            //     Vector3 holePos = GameManager.finishPosition;
+            //     // UPDATED: Use an empty SerializedWallData array instead of a Vector3[].
+            //     AgentControl.WallData[] walls = AgentControl.CollectNearbyWallPointsUsingRaycasts();
+            //     StartCoroutine(MiniGolfAPI.RequestShotWithEnvironment(currentId, spawnPos, holePos, walls, (shot) =>
+            //     {
+            //         if (shot != null)
+            //         {
+            //             agent.GetComponent<AgentControl>().ApplyShot(shot.power, shot.direction);
+            //         }
+            //         else
+            //         {
+            //             Debug.Log("Shot API call failed for agent " + currentId);
+            //         }
+            //     }));
+            // }));
         }
 
         GameManager.singleton.gameStatus = GameStatus.Playing;
