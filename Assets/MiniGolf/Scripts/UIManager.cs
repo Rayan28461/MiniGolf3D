@@ -97,8 +97,8 @@ public class UIManager : MonoBehaviour
     //method to go to main menu
     public void HomeBtn()
     {
-        GameManager.singleton.gameStatus = GameStatus.None;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        // Updated to use the new GameManager method
+        GameManager.singleton.ReturnToMainMenu();
     }
 
     //method to reload scene
@@ -106,6 +106,4 @@ public class UIManager : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
-
-
 }
