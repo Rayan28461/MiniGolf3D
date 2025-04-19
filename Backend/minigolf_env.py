@@ -1,47 +1,39 @@
+import time
 import gym
 import numpy as np
 import requests
 from gym import spaces
-from app import ShotData, Vector3
-# import random
-# from typing import Dict, Any
+from app import ShotData, Vector3, WallData
+from typing import List
+
+MAX_WALLS = 12
 
 class MiniGolfEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
-
     def __init__(self, agent_id: int = 1):
-        """
-        Initialize the MiniGolf environment.
-        
-        Args:
-            agent_id (int): Unique identifier for the agent. Defaults to 1.
-                           Use different IDs for different agents when training multiple agents.
-            number_of_agents (int): Total number of agents in Unity.
-        """
         super(MiniGolfEnv, self).__init__()
+        obs_size = 3 + 3 + MAX_WALLS * 5 # 3 for ball position, 3 for hole position, and 5 for each wall (x, y, z, width, rotation)
 
         # Define action space: [power, direction_x, direction_z]
         self.action_space = spaces.Box(
-            low=np.array([0, -1, -1]), 
-            high=np.array([6, 1, 1]), 
+            low=np.array([0, -1, 1]), # testing: [200, 0.00737, 0.99982]
+            high=np.array([200, -1, 1]), # testing: [200, 0.00737, 0.99982]
             dtype=np.float32
         )
 
-        # Define observation space
         self.observation_space = spaces.Box(
             low=-np.inf, 
             high=np.inf, 
-            shape=(6,), 
+            shape=(obs_size,), 
             dtype=np.float32
         )
 
         self.agent_id = agent_id
-        self.shots = 0           # NEW: track number of shots taken
-        self.max_shots = 5       # NEW: maximum allowed shots per episode
+        self.shots = 0
+        self.max_shots = 5
         self.base_url = "http://127.0.0.1:8001"
-        self.ball_position = None
-        self.hole_position = None
-        self.walls = []
+        self.ball_position = np.zeros(3, dtype=np.float32)
+        self.hole_position = np.zeros(3, dtype=np.float32)
+        self.out_of_bounds = False
 
     def step(self, action):
         info = {} 
@@ -74,22 +66,67 @@ class MiniGolfEnv(gym.Env):
             print(f"[ERROR] No response for shot received from Unity.")
 
         self.shots += 1
+        print(f"[DEBUG] Agent {self.agent_id} has taken a shot. Total shots: {self.shots}")
         self._ball_is_stationary()
         print(f"[DEBUG] Ball has stopped moving. Shots taken: {self.shots}")
 
-        print(f"[DEBUG] Fetching environment data after shot...")
+        # print(f"[DEBUG] Fetching environment data after shot...")
         obs = self._get_environment_data()
         self.ball_position = obs[:3]
-        self.hole_position = obs[3:]
+        self.hole_position = obs[3:6]
 
-        if self.shots >= self.max_shots:
-            done = True
-            print(f"[INFO] Episode finished. Total shots taken: {self.shots}")
+        reward, done = self._calculate_reward()
             
         return obs, reward, done, info
 
-    def _calculate_reward(self) -> int:
-        pass
+    def reset(self):
+        print(f"[DEBUG] Resetting environment for agent {self.agent_id}...")
+        
+        env_data = self._get_environment_data()
+        self.ball_position = env_data[:3]
+        self.hole_position = env_data[3:6]
+        self.shots = 0
+        self.out_of_bounds = False
+
+        success = False
+        retry_count = 0
+        while not success and retry_count < 5:
+            try:
+                reset_response = requests.post("http://127.0.0.1:8001/reset", timeout=5, json={})
+                if reset_response.status_code == 200:
+                    print("[DEBUG] Reset confirmed. Moving to next generation...")
+                    time.sleep(1)  # Small delay to ensure reset is processed
+                    success = True
+                else:
+                    print("[DEBUG] Reset request failed, retrying... Status:",
+                            reset_response.status_code, reset_response.text)
+            except Exception as e:
+                print("[DEBUG] Reset request error, retrying...", e)
+            if not success:
+                time.sleep(2)
+                retry_count += 1
+        if not success:
+            print("[DEBUG] Failed to reset environment after multiple attempts. Continuing without reset.")
+
+        return env_data
+
+    def _calculate_reward(self):
+        reward = 0
+        done = False
+        distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
+        # print(f"[DEBUG] Distance to hole: {distance_to_hole}")
+        if distance_to_hole < 0.1: # if the ball is in the hole
+            reward += 100 * (self.max_shots - self.shots)
+            done = True
+        if self.out_of_bounds: # if the ball is out of bounds
+            reward -= 10
+            done = True
+        if self.shots >= self.max_shots: # if the agent has exhausted its shots
+            reward -= 5 * distance_to_hole
+            done = True
+        reward -= self.shots * 0.1 # penalize for each shot taken
+        
+        return reward, done
 
     def _ball_is_stationary(self):
         ball_moving = True
@@ -101,7 +138,7 @@ class MiniGolfEnv(gym.Env):
                     import time
                     sleep = 5 # seconds
                     print(f"[DEBUG] Sleeping for {sleep} seconds...")
-                    time.sleep(sleep)  # Small delay to avoid flooding the server
+                    time.sleep(sleep)  # Small delay to wait for ball to stop
                     print(f"[DEBUG] I am awake!")
             else:
                 print(f"[ERROR] Failed to get ball status. Status code: {status_response.status_code}")
@@ -112,55 +149,32 @@ class MiniGolfEnv(gym.Env):
 
         response = requests.get(url=url)
 
-        print(f"[DEBUG] _get_environment_data response for agent {response.json()["agent_id"]}")
+        # print(f"[DEBUG] _get_environment_data response for agent {response.json()["agent_id"]}")
 
         if response.status_code == 200:
             data = response.json()
             ball_pos = data["ball_position"]
             hole_pos = data["hole_position"]
+            walls = data["walls"]
+
             ball_position = np.array([ball_pos["x"], ball_pos["y"], ball_pos["z"]])
             hole_position = np.array([hole_pos["x"], hole_pos["y"], hole_pos["z"]])
-            walls = [np.array(wall["hitPoint"]) for wall in data["walls"]]
-            print(f"[DEBUG] ball position array: {ball_position}")
-            print(f"[DEBUG] hole position array: {hole_position}")
-            return np.concatenate((ball_position, hole_position))
+            wall_data = np.zeros(MAX_WALLS * 5, dtype=np.float32)
+            
+            num_walls = min(len(walls), MAX_WALLS)
+
+            for i in range(num_walls):
+                wall = walls[i]
+                hit_point = wall["hitPoint"]
+                
+                wall_data[i*5] = hit_point["x"]
+                wall_data[i*5+1] = hit_point["y"]
+                wall_data[i*5+2] = hit_point["z"]
+                wall_data[i*5+3] = wall["width"]
+                wall_data[i*5+4] = wall["rotation"]
+
+            obs = np.concatenate((ball_position, hole_position, wall_data))
+            return obs
         else:
-            print(f"[ERROR] Failed to get environment data. Status code: {response.status_code}")
+            # print(f"[ERROR] Failed to get environment data. Status code: {response.status_code}")
             return None
-
-    def reset(self):
-        """Reset the environment to its initial state and get initial observation."""
-
-        env_data = self._get_environment_data()
-        self.ball_position = env_data[:3]
-        self.hole_position = env_data[3:]
-        self.shots = 0
-        
-        return env_data
-
-    # def render(self, mode="human"):
-    #     """Render the environment."""
-    #     if mode == "human":
-    #         print(f"Agent ID: {self.agent_id}")
-    #         print(f"Ball Position: {self.ball_position}")
-    #         print(f"Hole Position: {self.hole_position}")
-    #         print(f"Shots: {self.shots}")
-    #         print("-" * 50)  # Print a line of 50 dashes as a visual separator
-
-    # def close(self):
-    #     """Clean up environment."""
-    #     pass
-
-# Example usage
-if __name__ == "__main__":
-    # Create and test the environment for a specific agent.
-    env = MiniGolfEnv(agent_id=1)
-    obs = env.reset()
-    print("Starting MiniGolf Environment:")
-    for _ in range(5):
-        action = env.action_space.sample()
-        obs, reward, done, info = env.step(action)
-        env.render()
-        if done:
-            print(f"Episode finished with {info['shots']} shots!")
-            obs = env.reset()

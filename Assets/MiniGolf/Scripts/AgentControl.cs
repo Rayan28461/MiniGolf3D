@@ -74,7 +74,7 @@ public class AgentControl : MonoBehaviour
             finishPosition = finishObj.transform.position;
         }
         // Start the coroutine to process shots for this agent
-        StartCoroutine(ProcessShots());
+        // StartCoroutine(ProcessShots());
     }
 
     IEnumerator ProcessShots()
