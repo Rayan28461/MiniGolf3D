@@ -14,9 +14,10 @@ class MiniGolfEnv(gym.Env):
         obs_size = 3 + 3 + MAX_WALLS * 5 # 3 for ball position, 3 for hole position, and 5 for each wall (x, y, z, width, rotation)
 
         # Define action space: [power, direction_x, direction_z]
+        # The original range [0, 200] is correct, but we need to normalize the model's output for better learning
         self.action_space = spaces.Box(
-            low=np.array([0, -1, 1]), # testing: [200, 0.00737, 0.99982]
-            high=np.array([200, -1, 1]), # testing: [200, 0.00737, 0.99982]
+            low=np.array([0.01, -1, -1]), # Modified to allow all possible directions
+            high=np.array([1, 1, 1]),  # Power normalized to [0,1], will be scaled up later
             dtype=np.float32
         )
 
@@ -34,13 +35,18 @@ class MiniGolfEnv(gym.Env):
         self.ball_position = np.zeros(3, dtype=np.float32)
         self.hole_position = np.zeros(3, dtype=np.float32)
         self.out_of_bounds = False
+        self.max_power = 25.0  # Maximum power value for Unity (matching MaxForce in BallControl)
 
     def step(self, action):
         info = {} 
         done = False
         reward = 0
 
-        power, direction_x, direction_z = action
+        # Scale power from [0,1] to [0,max_power]
+        power_normalized = action[0]
+        power = power_normalized * self.max_power
+        
+        direction_x, direction_z = action[1], action[2]
 
         norm = np.sqrt(direction_x**2 + direction_z**2) # normalize direction vector to unit length
         if norm > 0:
@@ -48,7 +54,8 @@ class MiniGolfEnv(gym.Env):
             direction_z /= norm
         else:
             direction_x = 0
-            direction_z = 0
+            direction_z = 1  # Default direction if zero vector
+
         direction = Vector3(x=direction_x, y=0, z=direction_z)
 
         shot_data = ShotData(
@@ -115,7 +122,7 @@ class MiniGolfEnv(gym.Env):
         done = False
         distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
         # print(f"[DEBUG] Distance to hole: {distance_to_hole}")
-        if distance_to_hole < 0.1: # if the ball is in the hole
+        if distance_to_hole < 0.2: # Increased hole detection radius for better rewards
             reward += 100 * (self.max_shots - self.shots)
             done = True
         if self.out_of_bounds: # if the ball is out of bounds
@@ -136,7 +143,7 @@ class MiniGolfEnv(gym.Env):
                 ball_moving = status_response.json().get("is_moving", False)
                 if ball_moving:
                     import time
-                    sleep = 5 # seconds
+                    sleep = 2 # seconds
                     print(f"[DEBUG] Sleeping for {sleep} seconds...")
                     time.sleep(sleep)  # Small delay to wait for ball to stop
                     print(f"[DEBUG] I am awake!")
