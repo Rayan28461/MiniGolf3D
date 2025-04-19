@@ -436,6 +436,8 @@ MonoBehaviour:
   gameStatus: 0
   agentIds: 01000000
   initialShots: 5
+  mainMenuSceneName: Demo
+  gameLevelSceneName: GameLevel
 --- !u!114 &428676216
 MonoBehaviour:
   m_ObjectHideFlags: 0
