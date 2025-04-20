@@ -99,20 +99,20 @@ public class GameManager : MonoBehaviour
     }
 
     // Updated stub method to request a shot decision from the backend
-    public void RequestShot()
-    {
-        StartCoroutine(MiniGolfAPI.RequestShot(agentIds[0], (shot) =>
-        {
-            if(shot != null)
-            {
-                AgentControl.instance.ApplyShot(shot.power, shot.direction);
-            }
-            else
-            {
-                Debug.Log("Shot API call failed.");
-            }
-        }));
-    }
+    // public void RequestShot()
+    // {
+    //     StartCoroutine(MiniGolfAPI.RequestShot(agentIds[0], (shot) =>
+    //     {
+    //         if(shot != null)
+    //         {
+    //             AgentControl.instance.ApplyShot(shot.power, shot.direction);
+    //         }
+    //         else
+    //         {
+    //             Debug.Log("Shot API call failed.");
+    //         }
+    //     }));
+    // }
 
 }
 
