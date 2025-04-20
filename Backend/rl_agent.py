@@ -13,7 +13,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from app import ShotData, Vector3
 import numpy as np
 
-MODEL_PATH = "ppo_minigolf_multi"  # model file expected as "ppo_minigolf_multi.zip"
+MODEL_PATH = "ppo_minigolf_multi_1"  # model file expected as "ppo_minigolf_multi.zip"
 
 
 # NEW: Callback to track per-agent shot counts during training.
@@ -88,13 +88,57 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     vec_env = DummyVecEnv(env_fns)
     device = "cuda" if torch.cuda.is_available() else "cpu" # choose device
     # model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
-    model = PPO("MlpPolicy", env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
+    model = PPO("MlpPolicy", vec_env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
     model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
     model.save(MODEL_PATH)
     print("Training complete and model saved to", MODEL_PATH + ".zip")
     return model
+
+def continue_training(total_timesteps: int = 10000):
+    """
+    Load existing model and continue training it with additional timesteps.
+    
+    Args:
+        total_timesteps: Number of additional timesteps to train for
+    
+    Returns:
+        The trained model
+    """
+    # Check if model exists
+    if not os.path.exists(MODEL_PATH + ".zip"):
+        print("Model does not exist. Please train a model first using --train")
+        return None
+        
+    try:
+        # Load existing model
+        print(f"Loading existing model from {MODEL_PATH}")
+        model = PPO.load(MODEL_PATH)
+        
+        # Get number of agents from backend
+        agent_count = wait_for_agent_count()
+        print(f"[DEBUG] Continuing training with {agent_count} agent(s) for {total_timesteps} additional timesteps")
+        
+        # Create environments for training
+        env_fns = [make_env(i+1) for i in range(agent_count)]
+        vec_env = DummyVecEnv(env_fns)
+        
+        # Set the environment for the loaded model
+        model.set_env(vec_env)
+        
+        # Continue training
+        print(f"Continuing training for {total_timesteps} timesteps...")
+        model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True, reset_num_timesteps=False)
+        
+        # Save the model
+        model.save(MODEL_PATH)
+        print("Training complete and model saved to", MODEL_PATH + ".zip")
+        
+        return model
+    except Exception as e:
+        print(f"Error continuing training: {e}")
+        return None
 
 def load_or_train_model():
     if not os.path.exists(MODEL_PATH + ".zip"):
@@ -192,8 +236,11 @@ if __name__ == "__main__":
     if "--train" in sys.argv:
         agent_count = 1
         print(f"Manual training: Detected {agent_count} agents.")
-        # train_rl_agent(num_agents=agent_count, total_timesteps=20000)
-        load_or_train_model()
+        model = load_or_train_model()
+        if model is None:
+            print("Failed to load or train model. Exiting.")
+            exit(1)
+        continue_training(total_timesteps=10000)
     elif "--play" in sys.argv:
         model = load_or_train_model()
         if model is None:

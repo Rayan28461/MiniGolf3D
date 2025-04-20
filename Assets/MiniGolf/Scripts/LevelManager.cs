@@ -32,7 +32,7 @@ public class LevelManager : MonoBehaviour
     public void SpawnLevel(int levelIndex)
     {
         // Send the agent count to the backend.
-        StartCoroutine(SendAgentCount());
+        // StartCoroutine(SendAgentCount());
 
         // Spawn the level prefab.
         Instantiate(levelDatas[levelIndex].levelPrefab, Vector3.zero, levelDatas[levelIndex].levelPrefab.transform.rotation);
