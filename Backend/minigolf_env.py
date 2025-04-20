@@ -36,6 +36,7 @@ class MiniGolfEnv(gym.Env):
         self.hole_position = np.zeros(3, dtype=np.float32)
         self.out_of_bounds = False
         self.max_power = 25.0  # Maximum power value for Unity (matching MaxForce in BallControl)
+        self.previous_distance_to_hole = 0
 
     def step(self, action):
         info = {} 
@@ -63,6 +64,8 @@ class MiniGolfEnv(gym.Env):
             power=power,
             direction=direction
         )
+
+        self.previous_distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
         
         shot_response = requests.post(f"{self.base_url}/shoot?agent_id={self.agent_id}", json=shot_data.model_dump())
 
@@ -94,6 +97,7 @@ class MiniGolfEnv(gym.Env):
         self.hole_position = env_data[3:6]
         self.shots = 0
         self.out_of_bounds = False
+        self.previous_distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
 
         success = False
         retry_count = 0
@@ -117,23 +121,53 @@ class MiniGolfEnv(gym.Env):
 
         return env_data
 
+    # def _calculate_reward(self):
+    #     reward = 0
+    #     done = False
+    #     distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
+    #     # print(f"[DEBUG] Distance to hole: {distance_to_hole}")
+    #     if distance_to_hole < 0.2: # Increased hole detection radius for better rewards
+    #         reward += 100 * (self.max_shots - self.shots)
+    #         done = True
+    #     if self.out_of_bounds: # if the ball is out of bounds
+    #         reward -= 10
+    #         done = True
+    #     if self.shots >= self.max_shots: # if the agent has exhausted its shots
+    #         reward -= 10 * distance_to_hole
+    #         done = True
+    #     reward -= self.shots * 5 # penalize for each shot taken
+        
+    #     return reward, done
+
     def _calculate_reward(self):
         reward = 0
         done = False
+
         distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
-        # print(f"[DEBUG] Distance to hole: {distance_to_hole}")
-        if distance_to_hole < 0.2: # Increased hole detection radius for better rewards
-            reward += 100 * (self.max_shots - self.shots)
+
+        # Encourage getting closer to the hole
+        progress = self.previous_distance_to_hole - distance_to_hole
+        reward += 10 * progress  # small positive reward for improvement
+
+        if distance_to_hole < 0.2:
+            reward += 100 * (self.max_shots - self.shots)  # success bonus scaled by efficiency
             done = True
-        if self.out_of_bounds: # if the ball is out of bounds
-            reward -= 10
+
+        if self.out_of_bounds:
+            reward -= 20
             done = True
-        if self.shots >= self.max_shots: # if the agent has exhausted its shots
-            reward -= 10 * distance_to_hole
+
+        if self.shots >= self.max_shots:
+            reward -= 5 + 5 * distance_to_hole  # penalty scaled by how far from goal
             done = True
-        reward -= self.shots * 5 # penalize for each shot taken
-        
+
+        # Small penalty per shot (keep it small to encourage trying)
+        reward -= 1
+
+        self.previous_distance_to_hole = distance_to_hole  # update for next step
+
         return reward, done
+
 
     def _ball_is_stationary(self):
         ball_moving = True

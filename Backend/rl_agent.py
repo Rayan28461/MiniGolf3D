@@ -10,6 +10,8 @@ import requests
 import torch
 import time
 from stable_baselines3.common.callbacks import BaseCallback
+from app import ShotData, Vector3
+import numpy as np
 
 MODEL_PATH = "ppo_minigolf_multi"  # model file expected as "ppo_minigolf_multi.zip"
 
@@ -85,7 +87,8 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     # Wrap each environment to ensure it sets default shot tracking.
     vec_env = DummyVecEnv(env_fns)
     device = "cuda" if torch.cuda.is_available() else "cpu" # choose device
-    model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
+    # model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
+    model = PPO("MlpPolicy", env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
     model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
@@ -106,6 +109,84 @@ def load_or_train_model():
         print(f"Error loading trained model: {e}")
         return None
 
+def predict_shot(agent_id, env_data):
+    """
+    Use the trained model to predict the best shot for the given environment state.
+    
+    Args:
+        agent_id: ID of the agent making the shot
+        env_data: Observation data from the environment
+        
+    Returns:
+        ShotData object with the predicted shot parameters
+    """
+    # Convert observation to the format expected by the model
+    observation = np.array(env_data, dtype=np.float32)
+    
+    # Get the action from the model
+    action, _ = model.predict(observation, deterministic=True)
+    
+    # Scale power from [0,1] to [0,max_power]
+    power_normalized = action[0]
+    power = power_normalized * 25.0  # max_power value
+    
+    direction_x, direction_z = action[1], action[2]
+    
+    # Normalize direction vector
+    norm = np.sqrt(direction_x**2 + direction_z**2)
+    if norm > 0:
+        direction_x /= norm
+        direction_z /= norm
+    else:
+        direction_x = 0
+        direction_z = 1  # Default direction if zero vector
+    
+    shot_data = ShotData(
+        agent_id=agent_id,
+        power=power,
+        direction=Vector3(x=direction_x, y=0, z=direction_z)
+    )
+    
+    return shot_data
+
+def execute_shot(shot_data, base_url="http://127.0.0.1:8001"):
+    """
+    Send the shot data to the game and wait for the ball to stop.
+    
+    Args:
+        shot_data: ShotData object with shot parameters
+        base_url: URL of the game server
+        
+    Returns:
+        True if shot was executed successfully, False otherwise
+    """
+    try:
+        shot_response = requests.post(
+            f"{base_url}/shoot?agent_id={shot_data.agent_id}", 
+            json=shot_data.model_dump()
+        )
+        
+        if shot_response.status_code != 200:
+            print(f"Error executing shot: {shot_response.status_code}")
+            return False
+            
+        # Wait for the ball to stop moving
+        ball_moving = True
+        while ball_moving:
+            status_response = requests.get(f"{base_url}/ball_velocity?agent_id={shot_data.agent_id}")
+            if status_response.status_code == 200:
+                ball_moving = status_response.json().get("is_moving", False)
+                if ball_moving:
+                    time.sleep(0.5)  # Small delay before checking again
+            else:
+                print(f"Error getting ball status: {status_response.status_code}")
+                return False
+                
+        return True
+    except Exception as e:
+        print(f"Exception during shot execution: {e}")
+        return False
+
 if __name__ == "__main__":
     import sys
     if "--train" in sys.argv:
@@ -113,5 +194,46 @@ if __name__ == "__main__":
         print(f"Manual training: Detected {agent_count} agents.")
         # train_rl_agent(num_agents=agent_count, total_timesteps=20000)
         load_or_train_model()
-    else:
-        print("No training command detected. Exiting.")
+    elif "--play" in sys.argv:
+        model = load_or_train_model()
+        if model is None:
+            print("Failed to load model. Exiting.")
+            exit(1)
+            
+        print("Model loaded successfully. Ready to play!")
+        
+        # Create an environment instance for getting observations
+        env = MiniGolfEnv(agent_id=1)
+        
+        # Main game loop
+        shots = 0
+        while shots < 5:
+            try:
+                # Get the current environment state
+                observation = env._get_environment_data()
+                if observation is None:
+                    print("Failed to get environment data. Waiting...")
+                    time.sleep(2)
+                    continue
+                    
+                # Predict and execute shot
+                shot_data = predict_shot(env.agent_id, observation)
+                print(f"Taking shot with power: {shot_data.power:.2f}, direction: ({shot_data.direction.x:.2f}, {shot_data.direction.z:.2f})")
+                
+                success = execute_shot(shot_data)
+                if not success:
+                    print("Shot execution failed. Retrying...")
+                    time.sleep(1)
+                    continue
+                
+                shots += 1
+
+                # Wait a bit before the next shot to allow for any game processing
+                time.sleep(1)
+                
+            except KeyboardInterrupt:
+                print("Game interrupted by user. Exiting.")
+                break
+            except Exception as e:
+                print(f"Error in game loop: {e}")
+                time.sleep(2)
