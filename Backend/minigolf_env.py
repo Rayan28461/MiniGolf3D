@@ -66,16 +66,16 @@ class MiniGolfEnv(gym.Env):
         
         shot_response = requests.post(f"{self.base_url}/shoot?agent_id={self.agent_id}", json=shot_data.model_dump())
 
-        print(f"[DEBUG] Shot data sent: {shot_data.model_dump()}")
-        if shot_response.status_code ==  200:
-            print(f"[DEBUG] Response received: {shot_response.json()}")
-        else:
-            print(f"[ERROR] No response for shot received from Unity.")
+        # # print(f"[DEBUG] Shot data sent: {shot_data.model_dump()}")
+        # if shot_response.status_code ==  200:
+        #     print(f"[DEBUG] Response received: {shot_response.json()}")
+        # else:
+        #     print(f"[ERROR] No response for shot received from Unity.")
 
         self.shots += 1
-        print(f"[DEBUG] Agent {self.agent_id} has taken a shot. Total shots: {self.shots}")
+        # print(f"[DEBUG] Agent {self.agent_id} has taken a shot. Total shots: {self.shots}")
         self._ball_is_stationary()
-        print(f"[DEBUG] Ball has stopped moving. Shots taken: {self.shots}")
+        # print(f"[DEBUG] Ball has stopped moving. Shots taken: {self.shots}")
 
         # print(f"[DEBUG] Fetching environment data after shot...")
         obs = self._get_environment_data()
@@ -87,7 +87,7 @@ class MiniGolfEnv(gym.Env):
         return obs, reward, done, info
 
     def reset(self):
-        print(f"[DEBUG] Resetting environment for agent {self.agent_id}...")
+        # print(f"[DEBUG] Resetting environment for agent {self.agent_id}...")
         
         env_data = self._get_environment_data()
         self.ball_position = env_data[:3]
@@ -101,7 +101,7 @@ class MiniGolfEnv(gym.Env):
             try:
                 reset_response = requests.post("http://127.0.0.1:8001/reset", timeout=5, json={})
                 if reset_response.status_code == 200:
-                    print("[DEBUG] Reset confirmed. Moving to next generation...")
+                    # print("[DEBUG] Reset confirmed. Moving to next generation...")
                     time.sleep(1)  # Small delay to ensure reset is processed
                     success = True
                 else:
@@ -129,9 +129,9 @@ class MiniGolfEnv(gym.Env):
             reward -= 10
             done = True
         if self.shots >= self.max_shots: # if the agent has exhausted its shots
-            reward -= 5 * distance_to_hole
+            reward -= 10 * distance_to_hole
             done = True
-        reward -= self.shots * 0.1 # penalize for each shot taken
+        reward -= self.shots * 5 # penalize for each shot taken
         
         return reward, done
 
@@ -143,12 +143,12 @@ class MiniGolfEnv(gym.Env):
                 ball_moving = status_response.json().get("is_moving", False)
                 if ball_moving:
                     import time
-                    sleep = 2 # seconds
-                    print(f"[DEBUG] Sleeping for {sleep} seconds...")
+                    sleep = 3 # seconds
+                    # print(f"[DEBUG] Sleeping for {sleep} seconds...")
                     time.sleep(sleep)  # Small delay to wait for ball to stop
-                    print(f"[DEBUG] I am awake!")
+                    # print(f"[DEBUG] I am awake!")
             else:
-                print(f"[ERROR] Failed to get ball status. Status code: {status_response.status_code}")
+                # print(f"[ERROR] Failed to get ball status. Status code: {status_response.status_code}")
                 break
         
     def _get_environment_data(self) -> np.ndarray:
