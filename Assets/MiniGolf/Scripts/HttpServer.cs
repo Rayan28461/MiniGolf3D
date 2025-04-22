@@ -8,6 +8,9 @@ using UnityEngine.SceneManagement;
 
 public class HttpServer : MonoBehaviour
 {
+    // Static instance to ensure only one HttpServer exists
+    public static HttpServer Instance { get; private set; }
+    
     private HttpListener listener;
     private Thread serverThread;
     private bool isRunning = false;
@@ -18,63 +21,70 @@ public class HttpServer : MonoBehaviour
     // NEW: Static action to be executed on the main thread.
     public static Action ResetAction;
 
-    // Flag to indicate a specific level is fully loaded and ready for training
-    // public static bool isLevelReadyForTraining = false;
-
-    void Start()
+    void Awake()
     {
+        // Singleton pattern with DontDestroyOnLoad 
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            Debug.Log("HttpServer: Created persistent instance");
+        }
+        else
+        {
+            Debug.Log("HttpServer: Destroying duplicate instance");
+            Destroy(gameObject);
+            return;
+        }
+        
         // Initialize cached transform values on the main thread.
         cachedTransformPosition = transform.position;
-        // Subscribe to scene loading events
-        // SceneManager.sceneLoaded += OnSceneLoaded;
-        StartServer();
     }
-
-    // This will be called whenever a scene is loaded
-    // void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    // {
-    //     StartCoroutine(CheckLevelReady());
-    // }
-
-    // IEnumerator CheckLevelReady()
-    // {
-    //     // Wait for a couple of frames to make sure everything is initialized
-    //     yield return null;
-    //     yield return null;
-        
-    //     // Check if LevelManager exists and a level is properly loaded
-    //     if (LevelManager.instance != null && LevelManager.instance.currentLevel > 0)
-    //     {
-    //         isLevelReadyForTraining = true;
-    //         Debug.Log($"Level {LevelManager.instance.currentLevel} is fully loaded and ready for training!");
-    //     }
-    //     else
-    //     {
-    //         isLevelReadyForTraining = false;
-    //         Debug.Log("No specific level loaded yet - training should not start");
-    //     }
-    // }
+    
+    void Start()
+    {
+        // Only start the server if this is the persistent instance
+        if (Instance == this)
+        {
+            StartServer();
+        }
+    }
 
     void StartServer()
     {
-        listener = new HttpListener();
-        // Listen on port 8001 to avoid conflicts.
-        listener.Prefixes.Add("http://127.0.0.1:8001/");
-        listener.Start();
-        isRunning = true;
-        serverThread = new Thread(Listen);
-        serverThread.Start();
-        Debug.Log("HTTP Server started at http://127.0.0.1:8001/");
+        // Only start if not already running
+        if (isRunning)
+        {
+            Debug.Log("HTTP Server is already running.");
+            return;
+        }
 
-        // Check if game scene and level are loaded
-        bool sceneLoaded = SceneManager.GetActiveScene().isLoaded;
-        bool levelManagerExists = LevelManager.instance != null;
-        
-        if (sceneLoaded && levelManagerExists) {
-            Debug.Log("Game scene and level are fully loaded and ready");
-        } else {
-            Debug.LogWarning($"Game scene loaded: {sceneLoaded}, LevelManager: {levelManagerExists}");
-            Debug.LogWarning("Server started but scene or level may not be fully loaded yet");
+        try
+        {
+            listener = new HttpListener();
+            // Listen on port 8001 to avoid conflicts.
+            listener.Prefixes.Add("http://127.0.0.1:8001/");
+            listener.Start();
+            isRunning = true;
+            serverThread = new Thread(Listen);
+            serverThread.Start();
+            Debug.Log("HTTP Server started at http://127.0.0.1:8001/");
+
+            // Check if game scene and level are loaded
+            bool sceneLoaded = SceneManager.GetActiveScene().isLoaded;
+            bool levelManagerExists = LevelManager.instance != null;
+            
+            if (sceneLoaded && levelManagerExists) {
+                Debug.Log("Game scene and level are fully loaded and ready");
+            } else {
+                Debug.LogWarning($"Game scene loaded: {sceneLoaded}, LevelManager: {levelManagerExists}");
+                Debug.LogWarning("Server started but scene or level may not be fully loaded yet");
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Failed to start HTTP server: {e.Message}");
+            isRunning = false;
         }
     }
 
