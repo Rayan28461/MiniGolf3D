@@ -150,7 +150,7 @@ class MiniGolfEnv(gym.Env):
         reward += 10 * progress  # small positive reward for improvement
 
         if distance_to_hole < 0.2:
-            reward += 100 * (self.max_shots - self.shots)  # success bonus scaled by efficiency
+            reward += 1000 * (self.max_shots - self.shots) + 1000  # success bonus scaled by efficiency
             done = True
 
         if self.out_of_bounds:
