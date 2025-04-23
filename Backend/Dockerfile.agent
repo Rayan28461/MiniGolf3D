@@ -1,0 +1,43 @@
+FROM python:3.8-slim
+
+WORKDIR /app
+
+# Install system dependencies needed for ML libraries and diagnostics
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    iputils-ping \
+    iproute2 \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy files
+COPY rl_agent.py .
+COPY minigolf_env.py .
+COPY __init__.py .
+COPY docker-entrypoint.sh .
+COPY start-agent.sh .
+
+# Make scripts executable
+RUN chmod +x docker-entrypoint.sh start-agent.sh
+
+# If you have a pre-trained model, you can uncomment the following line
+# COPY ppo_minigolf_multi.zip .
+
+# Environment variables for configuration
+ENV APP_SERVER_URL=http://app:8000
+ENV AGENT_SERVER_URL=http://agent:8001
+ENV DEBUG_MODE=true
+ENV PYTHONUNBUFFERED=1
+ENV DOCKER_CONTAINER=true
+ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
+# Expose the port
+EXPOSE 8001
+
+# Use the entrypoint script
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Use the startup script that includes diagnostics
+CMD ["/app/start-agent.sh"] 

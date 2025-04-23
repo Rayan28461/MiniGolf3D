@@ -6,6 +6,7 @@ import uvicorn
 # from rl_agent import calculate_shot
 import asyncio
 import requests
+import os
 
 app = FastAPI()
 
@@ -74,6 +75,8 @@ async def get_agent_count():
 
 if __name__ == '__main__':
     try:
-        uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+        # Get HOST from environment variable or default to 127.0.0.1
+        host = os.environ.get("HOST", "127.0.0.1")
+        uvicorn.run("app:app", host=host, port=8000, reload=True)
     except KeyboardInterrupt:
         print("Keyboard interrupt received. Shutting down the server.")
