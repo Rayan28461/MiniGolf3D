@@ -96,6 +96,9 @@ The model will be loaded automatically when the game connects to the backend ser
 - Docker stopped working after adding a requirement for the backend, which caused dependency issues. The code is found in the repository but is not functional. The backend should be run locally instead.
 - The game is designed for Windows. If you want to run it on macOS or Linux, you may need to adjust the build settings in Unity.
 
+## Google Drive Link
+- Click [here](https://drive.google.com/drive/folders/11aZ-NIlshJABf4VLryoDgvPFd_gmyUNU?usp=sharing) to access the Google Drive folder containing the powerpoint presentation and a time-lapse video of the training process.
+
 ## Credits
 
 Art Assets: https://www.kenney.nl/assets/minigolf-kit
