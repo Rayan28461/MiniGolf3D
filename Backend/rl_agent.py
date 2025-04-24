@@ -2,58 +2,19 @@ import os
 # import random
 # import numpy as np
 # import gym
-import sys
-
-# Set protobuf environment variable to avoid errors
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
-try:
-    from minigolf_env import MiniGolfEnv
-    from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-    from stable_baselines3.common.callbacks import BaseCallback
-except TypeError as e:
-    if "Descriptors cannot be created directly" in str(e):
-        print("ERROR: Encountered protobuf error. Trying to fix...")
-        # Try to fix the protobuf error by installing a compatible version
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "protobuf==3.20.3"])
-        os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-        print("Restarting the script to apply fixes...")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-    else:
-        raise
-
+from minigolf_env import MiniGolfEnv
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from typing import Dict
 import requests
 import torch
 import time
+from stable_baselines3.common.callbacks import BaseCallback
 from app import ShotData, Vector3
 import numpy as np
-import argparse
-import signal
-
-# Get server URLs from environment variables or use defaults
-APP_SERVER_URL = os.environ.get("APP_SERVER_URL", "http://127.0.0.1:8000")
-AGENT_SERVER_URL = os.environ.get("AGENT_SERVER_URL", "http://127.0.0.1:8001")
-DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
-
-# Signal handling for graceful exit
-running = True
-def signal_handler(sig, frame):
-    global running
-    debug_print("Received signal to terminate. Exiting gracefully...")
-    running = False
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
 
 MODEL_PATH = "ppo_minigolf_multi_1"  # model file expected as "ppo_minigolf_multi.zip"
 
-def debug_print(*args, **kwargs):
-    """Print only if debug mode is enabled"""
-    if DEBUG_MODE:
-        print("[DEBUG]", *args, **kwargs)
-        sys.stdout.flush()  # Ensure output is flushed immediately
 
 # NEW: Callback to track per-agent shot counts during training.
 class ShotsTrackingCallback(BaseCallback):
@@ -103,7 +64,7 @@ class ShotsTrackingCallback(BaseCallback):
 
 def wait_for_agent_count() -> int:
     try:
-        response = requests.get(f"{APP_SERVER_URL}/get_agent_count", timeout=5)
+        response = requests.get("http://127.0.0.1:8000/get_agent_count", timeout=5)
         if response.status_code == 200:
             data = response.json()
             count = data.get("agent_count", 0)
@@ -130,7 +91,7 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     model = PPO("MlpPolicy", vec_env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
-    model.learn(total_timesteps=total_timesteps, progress_bar=True) # callback=ShotsTrackingCallback(verbose=1),
+    model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
     model.save(MODEL_PATH)
     print("Training complete and model saved to", MODEL_PATH + ".zip")
     return model
@@ -232,7 +193,7 @@ def predict_shot(agent_id, env_data):
     
     return shot_data
 
-def execute_shot(shot_data, base_url=AGENT_SERVER_URL):
+def execute_shot(shot_data, base_url="http://127.0.0.1:8001"):
     """
     Send the shot data to the game and wait for the ball to stop.
     
@@ -279,7 +240,7 @@ if __name__ == "__main__":
         if model is None:
             print("Failed to load or train model. Exiting.")
             exit(1)
-        continue_training(total_timesteps=5000)
+        continue_training(total_timesteps=10000)
     elif "--play" in sys.argv:
         model = load_or_train_model()
         if model is None:
@@ -297,101 +258,29 @@ if __name__ == "__main__":
             try:
                 # Get the current environment state
                 observation = env._get_environment_data()
-                if observation is not None:
-                    break
-                debug_print(f"Failed to get environment data. Attempt {attempt+1}/{max_attempts}")
-                time.sleep(5)
-            
-            if observation is None:
-                debug_print("All attempts to get environment data failed. Skipping this round.")
-                return
+                if observation is None:
+                    print("Failed to get environment data. Waiting...")
+                    time.sleep(2)
+                    continue
+                    
+                # Predict and execute shot
+                shot_data = predict_shot(env.agent_id, observation)
+                print(f"Taking shot with power: {shot_data.power:.2f}, direction: ({shot_data.direction.x:.2f}, {shot_data.direction.z:.2f})")
                 
-            # Predict and execute shot
-            debug_print("Predicting shot...")
-            shot_data = predict_shot(1, observation)
-            debug_print(f"Taking shot with power: {shot_data.power:.2f}, direction: ({shot_data.direction.x:.2f}, {shot_data.direction.z:.2f})")
-            
-            success = execute_shot(shot_data)
-            if not success:
-                debug_print("Shot execution failed. Moving to next round.")
-                return
-            
-            shots += 1
-            debug_print(f"Shot {shots}/{max_shots} completed")
+                success = execute_shot(shot_data)
+                if not success:
+                    print("Shot execution failed. Retrying...")
+                    time.sleep(1)
+                    continue
+                
+                shots += 1
 
-            # Wait a bit before the next shot to allow for game processing
-            time.sleep(5)
-            
-        except KeyboardInterrupt:
-            debug_print("Game interrupted by user. Exiting.")
-            break
-        except Exception as e:
-            debug_print(f"Error in game loop: {e}")
-            time.sleep(5)
-            break
-    
-    debug_print("Game session completed.")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="RL Agent for MiniGolf")
-    parser.add_argument('--train', action='store_true', help='Train the agent')
-    parser.add_argument('--continue-training', action='store_true', help='Continue training from saved model')
-    parser.add_argument('--timesteps', type=int, default=10000, help='Number of timesteps to train for')
-    parser.add_argument('--debug', action='store_true', help='Enable debug output')
-    parser.add_argument('--persistent', action='store_true', help='Run in persistent mode (default in Docker)')
-    args = parser.parse_args()
-    
-    # Set debug mode if passed as argument
-    if args.debug:
-        DEBUG_MODE = True
-
-    # In Docker, default to persistent mode
-    if os.environ.get("DOCKER_CONTAINER", "false").lower() == "true":
-        args.persistent = True
-    
-    debug_print(f"Starting RL agent with: APP_SERVER_URL={APP_SERVER_URL}, AGENT_SERVER_URL={AGENT_SERVER_URL}")
-    debug_print(f"Command line arguments: {args}")
-    
-    try:
-        debug_print("Checking connection to app server...")
-        response = requests.get(f"{APP_SERVER_URL}/get_agent_count", timeout=10)
-        debug_print(f"App server response: {response.status_code} - {response.text}")
-    except Exception as e:
-        debug_print(f"Error connecting to app server: {e}")
-        debug_print("Will continue anyway, hoping the connection will be established later.")
-    
-    model = None
-    
-    if args.train:
-        agent_count = wait_for_agent_count()
-        debug_print(f"Training model with {agent_count} agents for {args.timesteps} timesteps...")
-        model = train_rl_agent(num_agents=agent_count, total_timesteps=args.timesteps)
-    elif args.continue_training:
-        debug_print(f"Continuing training for {args.timesteps} timesteps...")
-        model = continue_training(total_timesteps=args.timesteps)
-    else:
-        # Just load the model
-        debug_print("Loading existing model...")
-        model = load_or_train_model()
-
-    if model is None:
-        debug_print("Failed to load or train model. Exiting.")
-        exit(1)
-
-    debug_print("Model loaded successfully. Ready to play!")
-    
-    if args.persistent:
-        debug_print("Running in persistent mode")
-        run_persistent_agent(model)
-    else:
-        debug_print("Running single game session")
-        run_game_loop(model)
-    
-    debug_print("Agent exiting.")
-    
-    # Sleep indefinitely in Docker to keep container alive
-    if DEBUG_MODE and os.environ.get("DOCKER_CONTAINER", "false").lower() == "true":
-        debug_print("Debug mode enabled in Docker - keeping container alive indefinitely")
-        while running:
-            time.sleep(60)
-            debug_print("Agent still alive, waiting for commands...")
+                # Wait a bit before the next shot to allow for any game processing
+                time.sleep(1)
+                
+            except KeyboardInterrupt:
+                print("Game interrupted by user. Exiting.")
+                break
+            except Exception as e:
+                print(f"Error in game loop: {e}")
+                time.sleep(2)
