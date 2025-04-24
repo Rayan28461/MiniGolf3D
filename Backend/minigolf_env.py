@@ -1,3 +1,8 @@
+"""
+This module defines the MiniGolfEnv class, which represents a custom OpenAI Gym environment for a mini-golf game.
+The environment interacts with a Unity-based backend to simulate the game and provides an interface for RL agents.
+"""
+
 import time
 import gym
 import numpy as np
@@ -9,7 +14,30 @@ from typing import List
 MAX_WALLS = 12
 
 class MiniGolfEnv(gym.Env):
+    """
+    Custom OpenAI Gym environment for a mini-golf game.
+
+    Attributes:
+        action_space (gym.spaces.Box): The action space for the agent, representing [power, direction_x, direction_z].
+        observation_space (gym.spaces.Box): The observation space for the environment.
+        agent_id (int): The ID of the agent interacting with the environment.
+        shots (int): The number of shots taken by the agent.
+        max_shots (int): The maximum number of shots allowed per episode.
+        base_url (str): The base URL for the Unity backend.
+        ball_position (np.ndarray): The current position of the ball.
+        hole_position (np.ndarray): The position of the hole.
+        out_of_bounds (bool): Whether the ball is out of bounds.
+        max_power (float): The maximum power value for shots.
+        previous_distance_to_hole (float): The distance to the hole in the previous step.
+    """
+
     def __init__(self, agent_id: int = 1):
+        """
+        Initialize the MiniGolfEnv environment.
+
+        Args:
+            agent_id (int): The ID of the agent interacting with the environment.
+        """
         super(MiniGolfEnv, self).__init__()
         obs_size = 3 + 3 + MAX_WALLS * 5 # 3 for ball position, 3 for hole position, and 5 for each wall (x, y, z, width, rotation)
 
@@ -39,6 +67,15 @@ class MiniGolfEnv(gym.Env):
         self.previous_distance_to_hole = 0
 
     def step(self, action):
+        """
+        Perform a step in the environment by executing the given action.
+
+        Args:
+            action (np.ndarray): The action to execute, consisting of [power, direction_x, direction_z].
+
+        Returns:
+            tuple: A tuple containing the observation, reward, done flag, and additional info.
+        """
         info = {} 
         done = False
         reward = 0
@@ -90,6 +127,12 @@ class MiniGolfEnv(gym.Env):
         return obs, reward, done, info
 
     def reset(self):
+        """
+        Reset the environment to its initial state.
+
+        Returns:
+            np.ndarray: The initial observation of the environment.
+        """
         # print(f"[DEBUG] Resetting environment for agent {self.agent_id}...")
         
         env_data = self._get_environment_data()
@@ -121,25 +164,13 @@ class MiniGolfEnv(gym.Env):
 
         return env_data
 
-    # def _calculate_reward(self):
-    #     reward = 0
-    #     done = False
-    #     distance_to_hole = np.linalg.norm(self.ball_position - self.hole_position)
-    #     # print(f"[DEBUG] Distance to hole: {distance_to_hole}")
-    #     if distance_to_hole < 0.2: # Increased hole detection radius for better rewards
-    #         reward += 100 * (self.max_shots - self.shots)
-    #         done = True
-    #     if self.out_of_bounds: # if the ball is out of bounds
-    #         reward -= 10
-    #         done = True
-    #     if self.shots >= self.max_shots: # if the agent has exhausted its shots
-    #         reward -= 10 * distance_to_hole
-    #         done = True
-    #     reward -= self.shots * 5 # penalize for each shot taken
-        
-    #     return reward, done
-
     def _calculate_reward(self):
+        """
+        Calculate the reward for the current state of the environment.
+
+        Returns:
+            tuple: A tuple containing the reward and the done flag.
+        """
         reward = 0
         done = False
 
@@ -170,6 +201,9 @@ class MiniGolfEnv(gym.Env):
 
 
     def _ball_is_stationary(self):
+        """
+        Wait until the ball is stationary by polling the Unity backend.
+        """
         ball_moving = True
         while ball_moving:
             status_response = requests.get(f"{self.base_url}/ball_velocity?agent_id={self.agent_id}")
@@ -186,6 +220,12 @@ class MiniGolfEnv(gym.Env):
                 break
         
     def _get_environment_data(self) -> np.ndarray:
+        """
+        Fetch the current environment data from the Unity backend.
+
+        Returns:
+            np.ndarray: The observation data, including ball position, hole position, and wall data.
+        """
         url = f"{self.base_url}/environment?agent_id={self.agent_id}"
 
         response = requests.get(url=url)

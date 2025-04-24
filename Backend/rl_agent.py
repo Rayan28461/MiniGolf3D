@@ -1,3 +1,8 @@
+"""
+This module defines the reinforcement learning (RL) agent for the mini-golf game.
+It includes training, prediction, and shot execution functionalities.
+"""
+
 import os
 # import random
 # import numpy as np
@@ -7,7 +12,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from typing import Dict
 import requests
-import torch
+# import torch
 import time
 from stable_baselines3.common.callbacks import BaseCallback
 from app import ShotData, Vector3
@@ -18,12 +23,35 @@ MODEL_PATH = "ppo_minigolf_multi_1"  # model file expected as "ppo_minigolf_mult
 
 # NEW: Callback to track per-agent shot counts during training.
 class ShotsTrackingCallback(BaseCallback):
+    """
+    Custom callback to track per-agent shot counts during training.
+
+    Attributes:
+        reset_sent (bool): Flag indicating whether a reset request has been sent.
+    """
     def __init__(self, verbose=0):
+        """
+        Initialize the ShotsTrackingCallback.
+
+        Args:
+            verbose (int): Verbosity level.
+        """
         super(ShotsTrackingCallback, self).__init__(verbose)
         self.reset_sent = False
 
     def _on_step(self) -> bool:
+        """
+        Perform operations at each step of the training process.
+
+        Returns:
+            bool: Whether to continue training.
+        """
         return True
+
+        """
+        The commented code below is what we tried to implement for tracking shots and resetting the environment for multiple agents.
+        It was not fully functional and is left here for reference.
+        """
         # all_exhausted = True
         # for env in self.training_env.envs:
         #     current_shots = getattr(env, "shots", 0)
@@ -63,6 +91,12 @@ class ShotsTrackingCallback(BaseCallback):
         # return True
 
 def wait_for_agent_count() -> int:
+    """
+    Wait for the backend to provide the number of agents.
+
+    Returns:
+        int: The number of agents.
+    """
     try:
         response = requests.get("http://127.0.0.1:8000/get_agent_count", timeout=5)
         if response.status_code == 200:
@@ -77,19 +111,38 @@ def wait_for_agent_count() -> int:
     return 1
 
 def make_env(agent_id):
+    """
+    Create a new MiniGolfEnv instance for a given agent ID.
+
+    Args:
+        agent_id (int): The ID of the agent.
+
+    Returns:
+        function: A function that initializes the environment.
+    """
     def _init():
         env = MiniGolfEnv(agent_id=agent_id)
         return env
     return _init
 
 def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
+    """
+    Train the RL agent using the PPO algorithm.
+
+    Args:
+        num_agents (int): The number of agents.
+        total_timesteps (int): The total number of timesteps for training.
+
+    Returns:
+        PPO: The trained model.
+    """
     env_fns = [make_env(i+1) for i in range(num_agents)]
     # Wrap each environment to ensure it sets default shot tracking.
     vec_env = DummyVecEnv(env_fns)
-    device = "cuda" if torch.cuda.is_available() else "cpu" # choose device
+    # device = "cuda" if torch.cuda.is_available() else "cpu" # choose device
     # model = PPO("MlpPolicy", vec_env, verbose=1, device=device)
-    model = PPO("MlpPolicy", vec_env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
-    print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
+    model = PPO("MlpPolicy", vec_env, verbose=1, n_steps=512, batch_size=64, n_epochs=4)
+    # print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
     model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
     model.save(MODEL_PATH)
@@ -98,13 +151,13 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
 
 def continue_training(total_timesteps: int = 10000):
     """
-    Load existing model and continue training it with additional timesteps.
-    
+    Continue training an existing RL model.
+
     Args:
-        total_timesteps: Number of additional timesteps to train for
-    
+        total_timesteps (int): The number of additional timesteps to train for.
+
     Returns:
-        The trained model
+        PPO: The trained model.
     """
     # Check if model exists
     if not os.path.exists(MODEL_PATH + ".zip"):
@@ -141,6 +194,12 @@ def continue_training(total_timesteps: int = 10000):
         return None
 
 def load_or_train_model():
+    """
+    Load an existing model or train a new one if none exists.
+
+    Returns:
+        PPO: The loaded or newly trained model.
+    """
     if not os.path.exists(MODEL_PATH + ".zip"):
         print("Model file not found. Retrieving agent count from backend...")
         agent_count = wait_for_agent_count()   # Single retrieval; no extra polling.
@@ -156,13 +215,13 @@ def load_or_train_model():
 def predict_shot(agent_id, env_data):
     """
     Use the trained model to predict the best shot for the given environment state.
-    
+
     Args:
-        agent_id: ID of the agent making the shot
-        env_data: Observation data from the environment
-        
+        agent_id (int): The ID of the agent making the shot.
+        env_data (np.ndarray): Observation data from the environment.
+
     Returns:
-        ShotData object with the predicted shot parameters
+        ShotData: The predicted shot parameters.
     """
     # Convert observation to the format expected by the model
     observation = np.array(env_data, dtype=np.float32)
@@ -196,13 +255,13 @@ def predict_shot(agent_id, env_data):
 def execute_shot(shot_data, base_url="http://127.0.0.1:8001"):
     """
     Send the shot data to the game and wait for the ball to stop.
-    
+
     Args:
-        shot_data: ShotData object with shot parameters
-        base_url: URL of the game server
-        
+        shot_data (ShotData): The shot parameters.
+        base_url (str): The URL of the game server.
+
     Returns:
-        True if shot was executed successfully, False otherwise
+        bool: True if the shot was executed successfully, False otherwise.
     """
     try:
         shot_response = requests.post(
@@ -284,3 +343,6 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Error in game loop: {e}")
                 time.sleep(2)
+    else:
+        print("Invalid argument. Use --train to train the model or --play to play the game.")
+        exit(1)
