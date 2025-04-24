@@ -161,7 +161,7 @@ class MiniGolfEnv(gym.Env):
             reward -= 5 + 5 * distance_to_hole  # penalty scaled by how far from goal
             done = True
 
-        # Small penalty per shot (keep it small to encourage trying)
+        # Small penalty per shot
         reward -= 1
 
         self.previous_distance_to_hole = distance_to_hole  # update for next step

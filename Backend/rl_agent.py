@@ -91,7 +91,7 @@ def train_rl_agent(num_agents: int, total_timesteps: int = 10000):
     model = PPO("MlpPolicy", vec_env, verbose=1, n_steps=512, batch_size=64, n_epochs=4, device=device)
     print(f"Training model for {num_agents} agents for {total_timesteps} timesteps on {device}...")
     # Pass the custom callback to track shots and trigger resets.
-    model.learn(total_timesteps=total_timesteps, callback=ShotsTrackingCallback(verbose=1), progress_bar=True)
+    model.learn(total_timesteps=total_timesteps, progress_bar=True) # callback=ShotsTrackingCallback(verbose=1),
     model.save(MODEL_PATH)
     print("Training complete and model saved to", MODEL_PATH + ".zip")
     return model
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         if model is None:
             print("Failed to load or train model. Exiting.")
             exit(1)
-        continue_training(total_timesteps=10000)
+        continue_training(total_timesteps=5000)
     elif "--play" in sys.argv:
         model = load_or_train_model()
         if model is None:
