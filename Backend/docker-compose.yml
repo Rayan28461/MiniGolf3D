@@ -1,0 +1,70 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: minigolf-app
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+    volumes:
+      - ./:/app
+      - dependencies:/usr/local/lib/python3.8/site-packages
+    networks:
+      - minigolf-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/get_agent_count"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: minigolf-agent
+    hostname: agent
+    ports:
+      - "8001:8001"
+    depends_on:
+      - app
+    environment:
+      - APP_SERVER_URL=http://app:8000
+      - AGENT_SERVER_URL=http://agent:8001
+      - DEBUG_MODE=true
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+    volumes:
+      - ./:/app
+      - dependencies:/usr/local/lib/python3.8/site-packages
+      - model_data:/app/models
+    networks:
+      - minigolf-network
+    restart: on-failure
+    tty: true  # Allocate a pseudo-TTY
+    stdin_open: true  # Keep STDIN open
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Explicitly run with debug flags and verbose output
+    command: python -u rl_agent.py --train --debug --persistent
+
+networks:
+  minigolf-network:
+    driver: bridge
+
+volumes:
+  dependencies:
+  model_data: 

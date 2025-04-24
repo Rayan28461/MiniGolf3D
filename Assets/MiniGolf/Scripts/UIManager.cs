@@ -106,4 +106,21 @@ public class UIManager : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
+    
+    //method to restart the current level
+    public void RestartLevel()
+    {
+        // Hide any active panels
+        if (gameOverPanel.activeSelf)
+        {
+            gameOverPanel.SetActive(false);
+        }
+        
+        // Deactivate retry and next buttons if they're active
+        retryBtn.SetActive(false);
+        nextBtn.SetActive(false);
+        
+        // Call the LevelManager's ResetLevel method
+        LevelManager.instance.ResetLevel();
+    }
 }

@@ -55,8 +55,8 @@ public class LevelManager : MonoBehaviour
         UIManager.instance.ShotText.text = shotCount.ToString();
 
         // Instantiate the ball and set the camera target.
-        // GameObject ball = Instantiate(ballPrefab, ballSpawnPos, Quaternion.identity);
-        // CameraFollow.instance.SetTarget(ball);
+        GameObject ball = Instantiate(ballPrefab, ballSpawnPos, Quaternion.identity);
+        CameraFollow.instance.SetTarget(ball);
 
         List<GameObject> agents = new List<GameObject>(); // Store spawned agents
 
@@ -70,7 +70,7 @@ public class LevelManager : MonoBehaviour
             GameObject agent = Instantiate(agentPrefab, spawnPos, Quaternion.identity);
 
             // Ignore collision with the ball
-            // Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
+            Physics.IgnoreCollision(agent.GetComponent<Collider>(), ball.GetComponent<Collider>());
             // Ignore collision with other agents
             foreach (GameObject otherAgent in agents)
             {

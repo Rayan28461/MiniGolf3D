@@ -2,15 +2,29 @@ import time
 import gym
 import numpy as np
 import requests
+import os
+import sys
 from gym import spaces
 from app import ShotData, Vector3, WallData
 from typing import List
+
+# Get server URL from environment variable or use default
+AGENT_SERVER_URL = os.environ.get("AGENT_SERVER_URL", "http://127.0.0.1:8001")
+DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
+
+def debug_print(*args, **kwargs):
+    """Print only if debug mode is enabled"""
+    if DEBUG_MODE:
+        print("[ENV_DEBUG]", *args, **kwargs)
+        sys.stdout.flush()  # Ensure output is flushed immediately
 
 MAX_WALLS = 12
 
 class MiniGolfEnv(gym.Env):
     def __init__(self, agent_id: int = 1):
         super(MiniGolfEnv, self).__init__()
+        debug_print(f"Initializing environment for agent {agent_id} with URL {AGENT_SERVER_URL}")
+        
         obs_size = 3 + 3 + MAX_WALLS * 5 # 3 for ball position, 3 for hole position, and 5 for each wall (x, y, z, width, rotation)
 
         # Define action space: [power, direction_x, direction_z]
@@ -31,12 +45,16 @@ class MiniGolfEnv(gym.Env):
         self.agent_id = agent_id
         self.shots = 0
         self.max_shots = 5
-        self.base_url = "http://127.0.0.1:8001"
+        self.base_url = AGENT_SERVER_URL
         self.ball_position = np.zeros(3, dtype=np.float32)
         self.hole_position = np.zeros(3, dtype=np.float32)
         self.out_of_bounds = False
         self.max_power = 25.0  # Maximum power value for Unity (matching MaxForce in BallControl)
         self.previous_distance_to_hole = 0
+        self.max_retries = 5  # Number of retries for API calls
+        self.retry_delay = 2  # Seconds to wait between retries
+        
+        debug_print(f"Environment initialized with observation space: {self.observation_space.shape}")
 
     def step(self, action):
         info = {} 
@@ -103,7 +121,7 @@ class MiniGolfEnv(gym.Env):
         retry_count = 0
         while not success and retry_count < 5:
             try:
-                reset_response = requests.post("http://127.0.0.1:8001/reset", timeout=5, json={})
+                reset_response = requests.post(f"{self.base_url}/reset", timeout=5, json={})
                 if reset_response.status_code == 200:
                     # print("[DEBUG] Reset confirmed. Moving to next generation...")
                     time.sleep(1)  # Small delay to ensure reset is processed
@@ -187,35 +205,47 @@ class MiniGolfEnv(gym.Env):
         
     def _get_environment_data(self) -> np.ndarray:
         url = f"{self.base_url}/environment?agent_id={self.agent_id}"
-
-        response = requests.get(url=url)
-
-        # print(f"[DEBUG] _get_environment_data response for agent {response.json()["agent_id"]}")
-
-        if response.status_code == 200:
-            data = response.json()
-            ball_pos = data["ball_position"]
-            hole_pos = data["hole_position"]
-            walls = data["walls"]
-
-            ball_position = np.array([ball_pos["x"], ball_pos["y"], ball_pos["z"]])
-            hole_position = np.array([hole_pos["x"], hole_pos["y"], hole_pos["z"]])
-            wall_data = np.zeros(MAX_WALLS * 5, dtype=np.float32)
-            
-            num_walls = min(len(walls), MAX_WALLS)
-
-            for i in range(num_walls):
-                wall = walls[i]
-                hit_point = wall["hitPoint"]
+        debug_print(f"Getting environment data from {url}")
+        
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.get(url=url, timeout=10)  # Add timeout
                 
-                wall_data[i*5] = hit_point["x"]
-                wall_data[i*5+1] = hit_point["y"]
-                wall_data[i*5+2] = hit_point["z"]
-                wall_data[i*5+3] = wall["width"]
-                wall_data[i*5+4] = wall["rotation"]
+                if response.status_code == 200:
+                    data = response.json()
+                    debug_print(f"Got environment data for agent {data['agent_id']}")
+                    
+                    ball_pos = data["ball_position"]
+                    hole_pos = data["hole_position"]
+                    walls = data["walls"]
 
-            obs = np.concatenate((ball_position, hole_position, wall_data))
-            return obs
-        else:
-            # print(f"[ERROR] Failed to get environment data. Status code: {response.status_code}")
-            return None
+                    ball_position = np.array([ball_pos["x"], ball_pos["y"], ball_pos["z"]])
+                    hole_position = np.array([hole_pos["x"], hole_pos["y"], hole_pos["z"]])
+                    wall_data = np.zeros(MAX_WALLS * 5, dtype=np.float32)
+                    
+                    num_walls = min(len(walls), MAX_WALLS)
+                    debug_print(f"Ball position: {ball_position}, Hole position: {hole_position}, Walls: {num_walls}")
+
+                    for i in range(num_walls):
+                        wall = walls[i]
+                        hit_point = wall["hitPoint"]
+                        
+                        wall_data[i*5] = hit_point["x"]
+                        wall_data[i*5+1] = hit_point["y"]
+                        wall_data[i*5+2] = hit_point["z"]
+                        wall_data[i*5+3] = wall["width"]
+                        wall_data[i*5+4] = wall["rotation"]
+
+                    obs = np.concatenate((ball_position, hole_position, wall_data))
+                    return obs
+                else:
+                    debug_print(f"Failed to get environment data. Status code: {response.status_code}. Attempt {attempt+1}/{self.max_retries}")
+            except Exception as e:
+                debug_print(f"Exception getting environment data: {e}. Attempt {attempt+1}/{self.max_retries}")
+            
+            if attempt < self.max_retries - 1:
+                debug_print(f"Retrying in {self.retry_delay} seconds...")
+                time.sleep(self.retry_delay)
+        
+        debug_print("All attempts to get environment data failed")
+        return None
